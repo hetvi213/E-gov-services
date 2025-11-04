@@ -34,26 +34,28 @@
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
 <div class="flex flex-col min-h-screen">
 <header class="w-full bg-white dark:bg-[#042110] shadow-sm sticky top-0 z-50">
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-  <div class="flex items-center justify-between h-20">
-  <div class="flex items-center">
-  <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-  <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-  </svg>
-  <span class="ml-3 text-2xl font-bold text-gray-900 dark:text-white">Krishi E-Government Services</span>
-  </div>
-  <nav class="hidden md:flex items-center space-x-8">
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/">Home</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">Services</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">About</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">Contact</a>
-  <a class="px-6 py-2 bg-primary text-white rounded-full font-semibold hover:bg-primary/90 transition-colors duration-200" href="/register">Login/Register</a>
-  </nav>
-  <button class="md:hidden text-gray-600 dark:text-gray-300">
-  <span class="material-symbols-outlined">menu</span>
-  </button>
-  </div>
-  </div>
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-20">
+    <div class="flex items-center">
+    <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+    </svg>
+    <span class="ml-3 text-2xl font-bold text-gray-900 dark:text-white">Krishi E-Government Services</span>
+    </div>
+    <nav class="hidden md:flex items-center space-x-8">
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/log">Home</a>
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/services">Services</a>
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/about">About</a>
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/contact">Contact</a>
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/my_applications">My Applications</a>
+    <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/track">Track</a>
+    <a class="px-6 py-2 bg-primary text-white rounded-full font-semibold hover:bg-primary/90 transition-colors duration-200" href="/">Logout</a>
+    </nav>
+    <button class="md:hidden text-gray-600 dark:text-gray-300">
+    <span class="material-symbols-outlined">menu</span>
+    </button>
+    </div>
+    </div>
 </header>
 <main class="flex-grow">
 <section class="relative bg-white dark:bg-[#042110] py-20 sm:py-32">
@@ -67,7 +69,7 @@
                             Your one-stop portal for accessing various government services efficiently and transparently.
                         </p>
 <div class="mt-8 flex justify-center gap-x-4">
-<a class="inline-block px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90 transition-transform transform hover:-translate-y-1" href="/login">
+<a class="inline-block px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90 transition-transform transform hover:-translate-y-1" href="/services">
                                 Explore Services
                             </a>
 <a class="inline-block px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-full font-semibold shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-transform transform hover:-translate-y-1" href="/about">
@@ -101,7 +103,7 @@
 </div>
 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Aadhaar Services</h3>
 <p class="text-gray-600 dark:text-gray-400 mb-6">Update your Aadhaar details, download e-Aadhaar, or check your Aadhaar status.</p>
-<a class="font-semibold text-primary hover:underline" href="/login">Get Started <span aria-hidden="true">→</span></a>
+<a class="font-semibold text-primary hover:underline" href="#">Get Started <span aria-hidden="true">→</span></a>
 </div>
 </div>
 <div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
@@ -111,21 +113,17 @@
 </div>
 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Voter ID Card</h3>
 <p class="text-gray-600 dark:text-gray-400 mb-6">Register for a Voter ID card to avail various benefits.</p>
-<a class="font-semibold text-primary hover:underline" href="/login">Register Now <span aria-hidden="true">→</span></a>
+<a class="font-semibold text-primary hover:underline" href="#">Register Now <span aria-hidden="true">→</span></a>
 </div>
 </div>
 </div>
 </div>
 </section>
 </main>
-<footer class="bg-white dark:bg-[#042110] mt-auto">
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-<div class="text-center text-gray-600 dark:text-gray-400">
-<p>© 2025 Krishi E-Government Services. All Rights Reserved.</p>
-<p class="mt-2 text-sm">Designed to serve the citizens of our nation.</p>
-</div>
-</div>
-</footer>
-</div>
 
+{% block footer %}
+  {% include "footer.html" %}
+{% endblock %}
+
+</div>
 </body></html>

@@ -1,45 +1,73 @@
 {% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#021b10] py-10 px-4">
-  <div class="w-full max-w-2xl bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-8">
-    
-    <h2 class="text-3xl font-bold text-center text-gray-900 dark:text-white">
-      Apply for {{ service.title }}
-    </h2>
-    <p class="text-center text-gray-500 dark:text-gray-300">Apply for {{ service.title.lower() }}</p>
+  <div class="w-full max-w-md bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-6">
 
+    <!-- Title -->
+    <div class="text-center">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
+        Apply for {{ service.title }}
+      </h2>
+      <p class="text-gray-500 dark:text-gray-300 mt-2">
+        Fill in the details to apply for {{ service.title.lower() }}
+      </p>
+    </div>
+
+    <!-- Application Form -->
     <form action="" method="POST" enctype="multipart/form-data" class="space-y-5">
       
       <!-- Applicant Details -->
-      <input type="text" name="name" placeholder="Full Name" required
-        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500">
-      <input type="email" name="email" placeholder="Email Address" required
-        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500">
-      <input type="tel" name="phone" placeholder="Mobile Number" required
-        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500">
+      <div class="space-y-2">
+        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+          Enter your name: 
+        </h5> 
+          <input type="text" name="name" placeholder="Full Name" required
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
+        
+        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+          Enter your Email Address: 
+        </h5> 
+          <input type="email" name="email" placeholder="Email Address" required
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
 
-      <!-- Documents Section -->
-      <div>
-        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Upload Required Documents:</h4>
-        {% for doc in service.documents %}
-        <div class="mb-3">
-          <label class="block mb-1 text-gray-700 dark:text-gray-300">{{ doc }}</label>
-          <input type="file" name="{{ doc }}" required
-            class="w-full text-gray-700 dark:text-gray-200 border rounded-lg py-2 px-3 focus:ring-2 focus:ring-green-500">
-        </div>
-        {% endfor %}
+        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+          Enter your Mobile No.: 
+        </h5>
+          <input type="tel" name="phone" placeholder="Mobile Number" required
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
       </div>
 
-      <!-- Payment Option -->
-      <div class="mt-6">
-        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Payment Option:</h4>
-        <div class="flex flex-col sm:flex-row gap-4">
+      <!-- Document Upload Section -->
+      <div class="pt-3">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+          Upload Required Documents
+        </h4>
+        <div class="space-y-3">
+          {% for doc in service.documents %}
+          <div>
+            <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">{{ doc }}</label>
+            <input type="file" name="{{ doc }}" required
+              class="w-full text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 focus:ring-2 focus:ring-green-500 focus:outline-none">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Payment Options -->
+      <div class="pt-4 text-left">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Payment Option</h4>
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
           <button type="submit" name="payment_choice" value="no_payment"
-            class="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all">
+            class="w-full sm:w-auto bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all">
             Submit Without Payment
           </button>
           <button type="submit" name="payment_choice" value="with_payment"
-            class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all">
+            class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all">
             Proceed to Payment ₹{{ service.base_price }}
           </button>
         </div>
@@ -48,3 +76,4 @@
   </div>
 </div>
 {% endblock %}
+

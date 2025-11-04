@@ -1,11 +1,47 @@
 {% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-2xl mx-auto p-6 bg-white rounded-lg text-center">
-  <div class="p-8 border rounded">
-    <h2 class="text-2xl font-bold">Your application has been submitted successfully</h2>
-    <p class="mt-4">Application ID: <span class="font-semibold">{{ application.app_id }}</span></p>
-    <p class="mt-2">Status: {{ application.status }}</p>
-    <a href="{{ url_for('track') }}" class="mt-6 inline-block bg-primary text-white px-6 py-2 rounded">Track Application</a>
+<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#021b10] py-10 px-4">
+  <div class="bg-white dark:bg-[#063b20] rounded-2xl shadow-lg max-w-lg w-full p-8 text-center">
+    <div class="mb-6">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2l4-4m6 2a9 9 0 11-18 0a9 9 0 0118 0z" />
+      </svg>
+    </div>
+
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      Your application has been submitted successfully
+    </h2>
+    <p class="text-gray-600 dark:text-gray-300 mb-6">Thank you for using our e-services portal.</p>
+
+    <div class="border-t border-gray-200 dark:border-gray-600 my-6"></div>
+
+    <div class="text-left space-y-2 text-gray-800 dark:text-gray-200">
+      <p><strong>Application ID:</strong> {{ app_id }}</p>
+      <p><strong>Date of Submission:</strong> {{ submission_date }}</p>
+      <p><strong>Service Applied For:</strong> {{ service_name }}</p>
+    </div>
+
+    <div class="mt-6 text-left">
+      <h3 class="font-semibold mb-2">Next Steps</h3>
+      <ul class="list-disc list-inside text-gray-700 dark:text-gray-300 text-sm">
+        <li>You will receive an email confirmation shortly.</li>
+        <li>Your application is now under review. This may take 5–7 business days.</li>
+        <li>You can track the status on the "My Applications" page.</li>
+        <li>We will notify you by email and SMS once there is an update.</li>
+      </ul>
+    </div>
+
+    <div class="mt-8">
+      <a href="/log"
+         class="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+         Back to Dashboard
+      </a>
+    </div>
   </div>
 </div>
 {% endblock %}

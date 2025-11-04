@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
 {% block content %}
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#021b10] py-10 px-4">
@@ -23,25 +28,33 @@
     </div>
 
     <!-- Razorpay Payment Button -->
-    <button id="rzp-button1" 
+    <button id="rzp-button1"
             class="bg-green-600 text-white py-3 px-8 rounded-full w-full hover:bg-green-700 transition-all duration-200">
       Pay with Razorpay
     </button>
 
     <!-- Submit After Payment -->
-    <form method="POST" class="mt-4">
-      <button type="submit"
-              class="bg-blue-600 text-white py-3 px-8 rounded-full w-full hover:bg-blue-700 transition-all duration-200">
+    <form action="/submit_application" method="POST" class="mt-4">
+      <input type="hidden" name="mobile" value="{{ session['mobile'] }}">
+      <input type="hidden" name="service_id" value="{{ service.id }}">
+      <input type="hidden" name="name" value="{{ service.name }}">
+      <input type="hidden" name="email" value="{{ service.email }}">
+      <input type="hidden" name="service" value="{{ service.title }}">
+      <button id="submit-btn" type="submit" 
+              class="bg-blue-400 text-white py-3 px-8 rounded-full w-full cursor-not-allowed transition-all duration-200">
         Submit Application
       </button>
     </form>
   </div>
 </div>
 
+<!-- Razorpay Script -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 document.getElementById('rzp-button1').onclick = async function(e) {
   e.preventDefault();
+
+  // Step 1: Create order via backend
   const response = await fetch("/create_order", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -50,6 +63,7 @@ document.getElementById('rzp-button1').onclick = async function(e) {
 
   const orderData = await response.json();
 
+  // Step 2: Razorpay Checkout Options
   var options = {
       "key": "rzp_test_RYA0tri2cAfoE8",
       "amount": orderData.amount,
@@ -57,14 +71,38 @@ document.getElementById('rzp-button1').onclick = async function(e) {
       "name": "Krishi E-Government Services",
       "description": "Payment for {{ service.title }}",
       "order_id": orderData.id,
-      "handler": function (response){
+      "handler": function (response) {
+          // Payment successful
           alert('✅ Payment successful! You can now submit your application.');
+
+          // Enable the submit button
+          const submitBtn = document.getElementById('submit-btn');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('cursor-not-allowed', 'bg-blue-400');
+          submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+
+          // Optionally store payment info in hidden inputs or localStorage
+          localStorage.setItem('payment_status', 'success');
       },
       "theme": { "color": "#0f9d58" }
   };
+
   var rzp1 = new Razorpay(options);
   rzp1.open();
-}
+
+  // Step 3: Handle payment failure
+  rzp1.on('payment.failed', function (response){
+      alert('❌ Payment failed! Please try again.');
+  });
+};
+
+// Optional: Disable form submission if payment not done
+document.querySelector('form').addEventListener('submit', function(e) {
+  if (localStorage.getItem('payment_status') !== 'success') {
+    e.preventDefault();
+    alert('⚠️ Please complete the payment before submitting your application.');
+  }
+});
 </script>
 
 {% endblock %}
