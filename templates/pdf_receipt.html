@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Application Receipt</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+            background-color: #fff;
+        }
+
+        .receipt-container {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            width: 450px;
+            margin: 0 auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #28a745;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #000;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+
+        .info {
+            margin-top: 10px;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        .info b {
+            color: #000;
+        }
+
+        ul {
+            margin-top: 10px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #777;
+        }
+
+        .checkmark {
+            text-align: center;
+            font-size: 40px;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="checkmark">✔</div>
+        <h1>Application Submitted Successfully</h1>
+        <p class="subtitle">Thank you for using our e-services portal.</p>
+        <hr>
+        <div class="info">
+            <p><b>Application ID:</b> {{ app_id }}</p>
+            <p><b>Date of Submission:</b> {{ submission_date }}</p>
+            <p><b>Service Applied For:</b> {{ service_name }}</p>
+        </div>
+
+        <div class="section-title">Next Steps</div>
+        <ul>
+            <li>You will receive an email confirmation shortly.</li>
+            <li>Your application is now under review (5–7 business days).</li>
+            <li>You can track the status on the “My Applications” page.</li>
+            <li>You will be notified by email and SMS once there is an update.</li>
+        </ul>
+
+        <div class="footer">
+            © 2025 Krishi E-Government Services | All Rights Reserved
+        </div>
+    </div>
+</body>
+</html>

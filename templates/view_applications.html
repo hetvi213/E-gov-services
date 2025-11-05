@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>View Applications</title>
+</head>
+<body>
+  <h2>Submitted Applications</h2>
+  <table border="1">
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Document</th>
+    </tr>
+    {% for app in applications %}
+    <tr>
+      <td>{{ app.name }}</td>
+      <td>{{ app.email }}</td>
+      <td>
+        {% if app.documents.endswith('.pdf') %}
+          <a href="{{ url_for('static', filename='uploads/' + app.documents.split('/')[-1]) }}" target="_blank">View PDF</a>
+        {% else %}
+          <img src="{{ url_for('static', filename='uploads/' + app.documents.split('/')[-1]) }}" width="100">
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

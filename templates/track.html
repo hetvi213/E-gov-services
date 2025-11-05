@@ -5,24 +5,53 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto p-6 bg-white rounded-lg">
-  <h2 class="text-2xl font-bold">Track Your Application</h2>
-  <form method="POST" class="mt-4">
-    <input name="app_id" placeholder="Enter Application ID (e.g., APP-0001)" class="w-full p-2 border rounded" />
-    <div class="mt-3 text-right">
-      <button id="button1"
-            class="bg-green-600 text-white py-3 px-8 rounded-full w-full hover:bg-green-700 transition-all duration-200">
-      Track
+<div class="max-w-2xl mx-auto bg-white dark:bg-[#063b20] p-8 rounded-xl shadow-lg text-center mt-10">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+    Application Tracking
+  </h2>
+
+  <!-- Form to Enter Application ID -->
+  <form method="POST" action="{{ url_for('track_application_form') }}" class="mb-8">
+    <label for="app_id" class="block text-lg text-gray-800 dark:text-gray-200 mb-2">
+      Enter Your Application ID:
+    </label>
+    <input type="text" name="app_id" id="app_id" 
+           class="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:ring-2 focus:ring-primary focus:outline-none"
+           placeholder="e.g., APP-1234" required>
+    <button type="submit"
+            class="mt-4 bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition">
+      Track Status
     </button>
-    </div>
   </form>
 
-  {% if app_info %}
-    <div class="mt-6">
-      <p><strong>Application ID:</strong> {{ app_info.app_id }}</p>
-      <p><strong>Status:</strong> {{ app_info.status }}</p>
-      <p><strong>Submitted on:</strong> {{ app_info.created_at }}</p>
+  {% if application %}
+  <!-- Show Result After Submission -->
+  <div>
+    <p class="text-lg text-gray-800 dark:text-gray-300 mb-6">
+      Application ID: <span class="font-semibold">{{ application.app_id }}</span>
+    </p>
+
+    <div class="flex justify-center">
+      {% if application.status == 'Submitted' %}
+        <span class="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold">Submitted</span>
+      {% elif application.status == 'Processing' %}
+        <span class="bg-yellow-400 text-white px-6 py-2 rounded-lg font-semibold">Processing</span>
+      {% elif application.status == 'Completed' %}
+        <span class="bg-green-500 text-white px-6 py-2 rounded-lg font-semibold">Completed</span>
+      {% else %}
+        <span class="bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold">{{ application.status }}</span>
+      {% endif %}
     </div>
+  </div>
+  {% elif searched %}
+  <!-- If no record found -->
+  <p class="text-red-500 font-semibold mt-6">No application found with that ID.</p>
   {% endif %}
+
+  <div class="mt-8">
+    <a href="/my_applications" class="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition">
+      ← My Applications
+    </a>
+  </div>
 </div>
 {% endblock %}

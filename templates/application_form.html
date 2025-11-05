@@ -5,7 +5,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#021b10] py-10 px-4">
   <div class="w-full max-w-md bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-6">
 
     <!-- Title -->
@@ -19,8 +18,8 @@
     </div>
 
     <!-- Application Form -->
-    <form action="" method="POST" enctype="multipart/form-data" class="space-y-5">
-      
+    <form action="{{ url_for('submit_application', service_id=service.id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+      <input type="hidden" name="service_id" value="{{ service.id }}">
       <!-- Applicant Details -->
       <div class="space-y-2">
         <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
@@ -62,10 +61,7 @@
       <div class="pt-4 text-left">
         <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Payment Option</h4>
         <div class="flex flex-col sm:flex-row justify-center gap-4">
-          <button type="submit" name="payment_choice" value="no_payment"
-            class="w-full sm:w-auto bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all">
-            Submit Without Payment
-          </button>
+          
           <button type="submit" name="payment_choice" value="with_payment"
             class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all">
             Proceed to Payment ₹{{ service.base_price }}
