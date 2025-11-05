@@ -38,7 +38,7 @@ app.config.update(
     MAIL_PORT=587,
     MAIL_USE_TLS=True,
     MAIL_USERNAME='hetvi5007@gmail.com',
-    MAIL_PASSWORD='Malti@213'  # Use Google App Password
+    MAIL_PASSWORD=''  # Use Google App Password
 )
 mail = Mail(app)
 
