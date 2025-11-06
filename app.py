@@ -29,7 +29,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 app.secret_key = os.getenv("FLASK_SECRET", "dev-secret")  # change in prod
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:root@localhost/gov_services'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/gov_services'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ✅ Flask Mail Connection
@@ -54,7 +54,7 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",        # replace with your MySQL username
-        password="root",  # replace with your MySQL password
+        password="",  # replace with your MySQL password
         database="gov_services"
     )
 
@@ -243,6 +243,31 @@ def forgot_password():
             flash("Email not found!", "error")
     return render_template('forgot_password.html')
 
+# Function to generate unique Application ID
+def generate_app_id():
+    """Generate unique application ID like APP-4721"""
+    return f"APP-{random.randint(1000, 9999)}"
+
+def generate_app_id():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM application")
+    count = cursor.fetchone()[0]
+    cursor.close()
+    conn.close()
+    return f"APP-{1000 + count + 1}"
+
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    # You can handle form data here (store in DB or send email)
+    name = request.form['name']
+    email = request.form['email']
+    subject = request.form['subject']
+    message = request.form['message']
+    # Example: flash message or redirect
+    flash("Your message has been sent successfully!", "success")
+    return redirect(url_for('home'))
 
 # ✅ Route to display all services
 @app.route('/services')
@@ -253,7 +278,7 @@ def services():
         return render_template('services.html', services=[])
     try:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT id, title, short_desc, base_price, documents, image FROM service")
+        cursor.execute("SELECT service_id, title, short_desc, base_price, documents, image FROM service")
         services = cursor.fetchall()
         if not services:
             print("⚠️ No services found in database.")
@@ -275,7 +300,7 @@ def service_detail(id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM service WHERE id = %s", (id,))
+        cursor.execute("SELECT * FROM service WHERE service_id = %s", (id,))
         service = cursor.fetchone()
         if not service:
             return "Service not found", 404
@@ -296,28 +321,11 @@ def service_detail(id):
             cursor.close()
             conn.close()
 
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    # You can handle form data here (store in DB or send email)
-    name = request.form['name']
-    email = request.form['email']
-    subject = request.form['subject']
-    message = request.form['message']
-    # Example: flash message or redirect
-    flash("Your message has been sent successfully!", "success")
-    return redirect(url_for('home'))
-
-# Function to generate unique Application ID
-def generate_app_id():
-    """Generate unique application ID like APP-4721"""
-    return f"APP-{random.randint(1000, 9999)}"
-
-
 @app.route("/application_form/<int:id>", methods=["GET", "POST"])
 def application_form(id):
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM service WHERE id = %s", (id,))
+    cur.execute("SELECT * FROM service WHERE service_id = %s", (id,))
     service = cur.fetchone()
     cur.close()
     conn.close()
@@ -351,7 +359,7 @@ def application_form(id):
 def payment(id):
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM service WHERE id = %s", (id,))
+    cur.execute("SELECT * FROM service WHERE service_id = %s", (id,))
     service = cur.fetchone()
     cur.close()
     conn.close()
@@ -375,20 +383,9 @@ def payment(id):
         # Remove data from session
         session.pop("form_data", None)
         flash("✅ Application submitted successfully!", "success")
-        return redirect(url_for("my_applications"))
+        return redirect(url_for("submit_application"))
     # 🧭 Render payment page
     return render_template("payment.html", service=service)
-
-
-@app.route("/my_applications")
-def my_applications():
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM application ORDER BY id DESC")
-    applications = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template("my_applications.html", applications=applications)
 
 @app.route("/create_order", methods=["POST"])
 def create_order():
@@ -402,15 +399,76 @@ def create_order():
     })
     return jsonify(order)
 
-@app.route('/track', methods=['GET','POST'])
+@app.route('/submit_application', methods=['GET', 'POST'])
+def submit_application():
+    form_data = session.get("form_data")
+    app_id = f"APP-{random.randint(1000, 9999)}"  # Generate unique ID here
+    if not form_data:
+        flash("No application data found. Please start again.", "warning")
+        return redirect(url_for("services"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM service WHERE service_id = %s", (form_data["service_id"],))
+    service = cursor.fetchone()
+
+    if not service:
+        return "Service not found", 404
+
+    submission_date = datetime.now().strftime("%d-%m-%Y")
+
+    cursor.execute("""
+        INSERT INTO application (app_id, service_id, name, email, mobile, service_name, total_amount, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        app_id,
+        form_data["service_id"],
+        form_data["name"],
+        form_data["email"],
+        form_data["mobile"],
+        service["title"],
+        service["base_price"],
+        "Submitted"
+    ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    session.pop("form_data", None)
+
+    return render_template(
+        'application_submitted.html',
+        app_id=app_id,
+        submission_date=submission_date,
+        service_name=service["title"]
+    )
+
+@app.route("/my_applications")
+def my_applications():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM application ORDER BY app_id DESC")
+    applications = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("my_applications.html", applications=applications)
+
+@app.route('/track', methods=['GET', 'POST'])
 def track_application_form():
-    app_info = None
+    application = None
+    searched = False
+
     if request.method == 'POST':
+        searched = True
         app_id = request.form.get('app_id')
-        app_info = Application.query.filter_by(app_id=app_id).first()
-        if not app_info:
+        application = Application.query.filter_by(app_id=app_id).first()
+        if not application:
             flash("Application not found", "danger")
-    return render_template('track.html', app_info=app_info)
+
+    return render_template('track.html', application=application, searched=searched)
+
 
 @app.route('/track/<string:app_id>')
 def track_application(app_id):
@@ -418,7 +476,7 @@ def track_application(app_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT app_id, name, email, phone, service_id, status
+            SELECT app_id, name, email, mobile, service_id, status
             FROM application
             WHERE app_id = %s
             LIMIT 1
@@ -591,14 +649,7 @@ def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
         print(f"❌ Error sending email: {e}")
 
 
-def generate_app_id():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM application")
-    count = cursor.fetchone()[0]
-    cursor.close()
-    conn.close()
-    return f"APP-{1000 + count + 1}"
+
 
 def generate_receipt_pdf(application):
     # HTML receipt rendering
@@ -616,7 +667,7 @@ def generate_receipt_pdf(application):
     pdfkit.from_string(rendered_html, pdf_path, configuration=config)
     return pdf_path
 
-
+'''
 # ---------- Submit Application ----------
 @app.route('/submit_application', methods=['POST'])
 def submit_application():
@@ -624,7 +675,7 @@ def submit_application():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE id = %s", (service_id,))
+    cursor.execute("SELECT * FROM service WHERE service_id = %s", (service_id,))
     service = cursor.fetchone()
     if not service:
         # Handle missing service safely
@@ -685,7 +736,7 @@ def application_submitted(app_id):
         return "Application not found", 404
     return render_template('application_submitted.html', app_id=app_id)
 
-'''
+
 @app.route('/application_submitted')
 def application_submitted():
     app_id = session.get('last_app_id')
@@ -791,7 +842,7 @@ def generate_pdf(app_id):
     # Get service name
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT title FROM service WHERE id = %s", (app_data['service_id'],))
+    cur.execute("SELECT title FROM service WHERE service_id = %s", (app_data['service_id'],))
     service = cur.fetchone()
     cur.close()
     conn.close()
@@ -825,22 +876,22 @@ def generate_pdf(app_id):
 
 if __name__ == "__main__":
     try:
-        conn = mysql.connector.connect(
+        con = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="root",
+            password="",
             database="gov_services"
         )
-        cursor = conn.cursor()
+        cursor = con.cursor()
         # ✅ Check if the service table already has rows
         cursor.execute("SELECT COUNT(*) FROM service")
         count = cursor.fetchone()[0]
     except mysql.connector.Error as err:
         print(f"❌ MySQL error: {err}")
     finally:
-        if conn.is_connected():
+        if con.is_connected():
             cursor.close()
-            conn.close()
+            con.close()
             print("🔒 Database connection closed.")
     
     app.run(debug=True)

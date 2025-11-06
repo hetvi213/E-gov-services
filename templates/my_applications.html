@@ -36,10 +36,10 @@
             <td class="p-3 text-gray-900 dark:text-white">{{ app.mobile }}</td>
             <td class="p-3 text-gray-900 dark:text-white">{{ app.status }}</td>
             <td class="p-3 text-gray-900 dark:text-white">
-              <button type="submit" id="submit-btn"
-                class="bg-blue-400 text-white py-3 px-8 rounded-full w-full transition-all duration-200">
-                Submit Application
-              </button>
+              <a href="{{ url_for('track_application', app_id=app.app_id) }}"
+   class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-full transition duration-200 inline-block">
+   Track
+              </a>
 
             </td>
           </tr>

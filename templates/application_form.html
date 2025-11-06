@@ -18,7 +18,7 @@
     </div>
 
     <!-- Application Form -->
-    <form action="{{ url_for('submit_application', service_id=service.id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+    <form action="{{ url_for('application_form', id=service.service_id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
       <input type="hidden" name="service_id" value="{{ service.id }}">
       <!-- Applicant Details -->
       <div class="space-y-2">
