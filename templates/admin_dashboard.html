@@ -1,0 +1,83 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto px-6 py-10">
+
+    <h2 class="text-3xl font-bold">Admin Panel</h2>
+    <p class="text-gray-600 mt-1 mb-6">Manage all service applications.</p>
+
+    <div class="bg-white shadow rounded-2xl overflow-hidden">
+        <table class="w-full text-center">
+            <thead class="bg-gray-100 text-gray-700">
+                <tr>
+                    <th class="p-4">Application ID</th>
+                    <th class="p-4">User Name</th>
+                    <th class="p-4">Service Type</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Date</th>
+                    <th class="p-4">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y">
+                {% for row in applications %}
+                <tr class="hover:bg-gray-50">
+
+                    <td class="p-4">{{ row.app_id }}</td>
+
+                    <td class="p-4">{{ row.name }}</td>
+                    
+                    <td class="p-4">
+                        {{ row.service_name }}<br>
+                        
+                    </td>
+
+                    <td class="p-4">
+                        {% if row.status == "Completed" %}
+                            <span class="px-3 py-1 text-sm bg-green-500 text-white rounded-full">Completed</span>
+                        {% elif row.status == "Processing" %}
+                            <span class="px-3 py-1 text-sm bg-blue-500 text-white rounded-full">Processing</span>
+                        {% elif row.status == "Verified" %}
+                            <span class="px-3 py-1 text-sm bg-red-500 text-white rounded-full">Verified</span>
+                        {% elif row.status == "Received" %}
+                            <span class="px-3 py-1 text-sm bg-yellow-500 text-white rounded-full">Received</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="p-4">
+                        {{ row.created_at.strftime("%Y-%m-%d") if row.created_at else "" }}
+                    </td>
+
+                    <td class="p-4 flex gap-2">
+
+                        <a href="/update_status/{{ row.app_id }}/Received"
+                           class="px-3 py-1 bg-yellow-400 text-white text-sm rounded-full">
+                           Received
+                        </a>
+
+                        <a href="/update_status/{{ row.app_id }}/Verified"
+                           class="px-3 py-1 bg-red-400 text-white text-sm rounded-full">
+                           Verified
+                        </a>
+
+                        <a href="/update_status/{{ row.app_id }}/Processing"
+                           class="px-3 py-1 bg-blue-500 text-white text-sm rounded-full">
+                           Processing
+                        </a>
+
+                        <a href="/update_status/{{ row.app_id }}/Completed"
+                           class="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
+                           Completed
+                        </a>
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

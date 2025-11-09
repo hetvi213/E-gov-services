@@ -20,8 +20,9 @@
             <th class="p-3 text-center">Applicant Name</th>
             <th class="p-3 text-center">Email</th>
             <th class="p-3 text-center">Mobile No.</th>
-            <th class="p-3 text-center">Status</th>
+            <!-- <th class="p-3 text-center">Status</th> -->
             <th class="p-3 text-center">Track</th>
+            <th class="p-3 text-center">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -34,13 +35,24 @@
             <td class="p-3 text-gray-900 dark:text-white">{{ app.name }}</td>
             <td class="p-3 text-gray-900 dark:text-white">{{ app.email }}</td>
             <td class="p-3 text-gray-900 dark:text-white">{{ app.mobile }}</td>
-            <td class="p-3 text-gray-900 dark:text-white">{{ app.status }}</td>
+            <!-- <td class="p-3 text-gray-900 dark:text-white">{{ app.status }}</td> -->
             <td class="p-3 text-gray-900 dark:text-white">
               <a href="{{ url_for('track_application', app_id=app.app_id) }}"
-   class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-full transition duration-200 inline-block">
-   Track
+                 class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-full transition duration-200 inline-block">
+                 Track
               </a>
+            </td>
 
+            <!-- ✅ New column: Action -->
+            <td class="p-3 text-gray-900 dark:text-white text-center">
+              {% if app.status == "Completed" and app.document_path %}
+                <a href="{{ url_for('download_document', filename=app.document_path.replace('\\', '/')) }}"
+                   class="bg-green-600 hover:bg-green-700 text-white py-2 px-5 rounded-full transition duration-200 inline-block">
+                   Download Document
+                </a>
+              {% else %}
+                <span class="text-gray-400 italic">Not available</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

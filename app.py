@@ -1,5 +1,5 @@
 from MySQLdb import MySQLError
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify, send_file, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify, send_file, make_response, send_from_directory
 from mysql.connector import Error
 from werkzeug.security import generate_password_hash
 from flask_mysqldb import MySQL
@@ -18,8 +18,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from functools import wraps
+from werkzeug.utils import secure_filename
 import io, os, pdfkit
-import mysql.connector, random, string, json, os, uuid, smtplib, MySQLdb.cursors, razorpay, warnings
+import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
 from dotenv import load_dotenv
@@ -31,6 +33,7 @@ app.secret_key = "your_secret_key"
 app.secret_key = os.getenv("FLASK_SECRET", "dev-secret")  # change in prod
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/gov_services'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["UPLOAD_FOLDER"] = "uploads"
 
 # ✅ Flask Mail Connection
 app.config.update(
@@ -47,7 +50,7 @@ mail = Mail(app)
 db = SQLAlchemy(app)
 
 # Razorpay client (use test keys first)
-razorpay_client = razorpay.Client(auth=("rzp_test_RYA0tri2cAfoE8", "FuIi5rksxQoJ294Qg9trERek"))
+razorpay_client = razorpay.Client(auth=("rzp_test_Rcq1OkhS35AWp9", "ldq5ru7Am3Q19qxjUHhF5w7x"))
 
 # ✅ Database Connection
 def get_db_connection():
@@ -96,7 +99,7 @@ class Application(db.Model):
     email = db.Column(db.String(200))
     mobile = db.Column(db.String(50))
     total_amount = db.Column(db.Numeric(10,2))
-    status = db.Column(db.String(50), default="Submitted")
+    status = db.Column(db.String(50))
     #razorpay_order_id = db.Column(db.String(200), nullable=True)
     #razorpay_payment_id = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -108,6 +111,11 @@ class ApplicationItem(db.Model):
     selected_documents = db.Column(JSON)  # list of selected doc names
     item_amount = db.Column(db.Numeric(10,2))
 
+# Functions
+def allowed_file(filename):
+    allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
+
 
 # ✅ Routes
 @app.route('/')
@@ -116,6 +124,7 @@ def home():
 
 @app.route('/log')
 def logout():
+    session.clear()
     return render_template('log.html')
 
 @app.route('/register')
@@ -188,20 +197,118 @@ def login_user():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+
+        # ✅ Admin Login (hard-coded for now)
+        if email == "admin@gmail.com" and password == "admin":
+            session['admin'] = True
+            return redirect(url_for('admin_dashboard'))
+
+        # ✅ Normal User Login
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cursor.fetchone()
         conn.close()
+
         if user:
             if check_password_hash(user['password'], password):
-                #flash(f"✅ Login Successful! Welcome, {user['name']}.", "success")
-                return redirect(url_for('logout'))
+                session['user_id'] = user['user_id']
+                session['email'] = user['email']
+                return render_template('log.html')
             else:
                 flash("❌ Incorrect password!", "error")
         else:
             flash("❌ Email not found!", "error")
+
     return render_template('login.html')
+
+# Admin Dashboard Route
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    if not session.get("admin"):   # protect admin section
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("SELECT * FROM application ORDER BY id DESC")
+    applications = cur.fetchall()
+
+    conn.close()
+
+    return render_template("admin_dashboard.html", applications=applications)
+
+@app.route("/update_status/<app_id>/<new_status>")
+def update_status(app_id, new_status):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "UPDATE application SET status=%s WHERE app_id=%s",
+        (new_status, app_id)
+    )
+
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/analytics")
+def admin_analytics():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # ✅ KPI Metrics
+    cur.execute("SELECT COUNT(*) AS total FROM application")
+    total = cur.fetchone()['total']
+
+    cur.execute("SELECT COUNT(*) AS received FROM application WHERE status='Received'")
+    received = cur.fetchone()['received']
+
+    cur.execute("SELECT COUNT(*) AS verified FROM application WHERE status='Verified'")
+    verified = cur.fetchone()['verified']
+
+    cur.execute("SELECT COUNT(*) AS processing FROM application WHERE status='Processing'")
+    processing = cur.fetchone()['processing']
+
+    cur.execute("SELECT COUNT(*) AS completed FROM application WHERE status='Completed'")
+    completed = cur.fetchone()['completed']
+
+    cur.execute("SELECT SUM(total_amount) AS revenue FROM application WHERE payment_status='Paid'")
+    revenue = cur.fetchone()['revenue'] or 0
+
+    # ✅ Applications Trend by Date
+    cur.execute("""
+        SELECT DATE(created_at) AS date, COUNT(*) AS count
+        FROM application
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at)
+    """)
+    trend = cur.fetchall()
+
+    # ✅ Service Wise Count
+    cur.execute("""
+        SELECT service_name, COUNT(*) AS count
+        FROM application
+        GROUP BY service_name
+    """)
+    service_data = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "analytics.html",
+        total=total,
+        received=received,
+        verified=verified,
+        processing=processing,
+        completed=completed,
+        revenue=revenue,
+        trend=trend,
+        service_data=service_data
+    )
+
 
 # ✅ Route: forgot_password
 @app.route('/forgot_password', methods=['GET', 'POST'])
@@ -243,19 +350,7 @@ def forgot_password():
             flash("Email not found!", "error")
     return render_template('forgot_password.html')
 
-# Function to generate unique Application ID
-def generate_app_id():
-    """Generate unique application ID like APP-4721"""
-    return f"APP-{random.randint(1000, 9999)}"
 
-def generate_app_id():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM application")
-    count = cursor.fetchone()[0]
-    cursor.close()
-    conn.close()
-    return f"APP-{1000 + count + 1}"
 
 
 @app.route('/send_message', methods=['POST'])
@@ -340,6 +435,28 @@ def application_form(id):
         service["documents"] = []
 
     if request.method == "POST":
+        file = request.files.get("document")
+
+        if not file or file.filename == "":
+            flash("Please upload the required document.", "warning")
+            return redirect(request.url)
+        
+        # Allowed extensions
+        allowed_ext = {"pdf", "jpg", "jpeg", "png"}
+        if "." not in file.filename or file.filename.rsplit(".", 1)[1].lower() not in allowed_ext:
+            flash("Invalid file type. Allowed: PDF, JPG, JPEG, PNG", "danger")
+            return redirect(request.url)
+        
+        # ----------- SAVE FILE SECURELY -------------
+        original_name = secure_filename(file.filename)
+        ext = original_name.rsplit(".", 1)[1].lower()
+
+        unique_name = f"{uuid.uuid4().hex}.{ext}"
+
+        upload_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        file.save(upload_path)
+        
         # Temporarily store form details in session
         session["form_data"] = {
             "service_id": id,
@@ -350,7 +467,7 @@ def application_form(id):
             "total_amount": service["base_price"]
             
         }
-        app_id = generate_app_id()  # Generate unique ID here
+        #app_id = generate_app_id()  # Generate unique ID here
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
@@ -429,7 +546,7 @@ def submit_application():
         form_data["mobile"],
         service["title"],
         service["base_price"],
-        "Submitted"
+        "Received"
     ))
 
     conn.commit()
@@ -454,6 +571,16 @@ def my_applications():
     cur.close()
     conn.close()
     return render_template("my_applications.html", applications=applications)
+
+@app.route('/download/<path:filename>')
+def download_document(filename):
+    base_dir = os.path.join(app.root_path, 'uploads')
+    file_path = os.path.join(base_dir, filename)
+    print("Looking for file:", file_path)  # debug
+    if not os.path.exists(file_path):
+        abort(404)
+    return send_from_directory(base_dir, filename, as_attachment=True)
+
 
 @app.route('/track', methods=['GET', 'POST'])
 def track_application_form():

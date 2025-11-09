@@ -1,0 +1,115 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+
+<div class="p-6">
+
+    <h2 class="text-3xl font-bold mb-1">Analytics Dashboard</h2>
+    <p class="text-gray-500 mb-6">Overview of all platform activities.</p>
+
+    <!-- ===== KPI CARDS ===== -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-white p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Total Applications</h3>
+            <p class="text-3xl font-bold">{{ total }}</p>
+        </div>
+
+        <div class="bg-yellow-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Received</h3>
+            <p class="text-3xl font-bold text-yellow-600">{{ received }}</p>
+        </div>
+
+        <div class="bg-yellow-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Verified</h3>
+            <p class="text-3xl font-bold text-yellow-600">{{ verified }}</p>
+        </div>
+
+        <div class="bg-blue-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Processing</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ processing }}</p>
+        </div>
+
+        <div class="bg-green-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Completed</h3>
+            <p class="text-3xl font-bold text-green-600">{{ completed }}</p>
+        </div>
+
+        <div class="bg-indigo-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Total Revenue</h3>
+            <p class="text-3xl font-bold text-indigo-600">₹ {{ revenue }}</p>
+        </div>
+    </div>
+
+    <!-- ===== Charts Section ===== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Trend Chart -->
+        <div class="bg-white p-6 rounded-xl shadow">
+            <h3 class="text-xl font-semibold mb-4">Applications Trend</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+
+        <!-- Service Distribution -->
+        <div class="bg-white p-6 rounded-xl shadow">
+            <h3 class="text-xl font-semibold mb-4">Service Usage Distribution</h3>
+            <canvas id="serviceChart"></canvas>
+        </div>
+
+    </div>
+</div>
+
+<!-- ===== Chart.js CDN ===== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // ===== Trend Chart =====
+    const trendLabels = [
+        {% for row in trend %}
+            "{{ row.date }}",
+        {% endfor %}
+    ];
+
+    const trendData = [
+        {% for row in trend %}
+            {{ row.count }},
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById("trendChart"), {
+        type: "line",
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: "Applications",
+                data: trendData,
+                fill: true,
+                tension: 0.3
+            }]
+        }
+    });
+
+    // ===== Service Chart =====
+    const serviceLabels = [
+        {% for s in service_data %}
+            "{{ s.service_name }}",
+        {% endfor %}
+    ];
+
+    const serviceCounts = [
+        {% for s in service_data %}
+            {{ s.count }},
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById("serviceChart"), {
+        type: "pie",
+        data: {
+            labels: serviceLabels,
+            datasets: [{
+                data: serviceCounts
+            }]
+        }
+    });
+</script>
+
+{% endblock %}
