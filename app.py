@@ -117,6 +117,83 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
 
 
+# Admin Dashboard Route
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    if not session.get("admin"):   # protect admin section
+        return redirect(url_for("login"))
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM application ORDER BY id DESC")
+    applications = cur.fetchall()
+    conn.close()
+    return render_template("admin_dashboard.html", applications=applications)
+
+@app.route("/update_status/<app_id>/<new_status>")
+def update_status(app_id, new_status):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE application SET status=%s WHERE app_id=%s",
+        (new_status, app_id)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin_dashboard"))
+
+# Admin Analytics Route
+@app.route("/admin/analytics")
+def admin_analytics():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # ✅ KPI Metrics
+    cur.execute("SELECT COUNT(*) AS total FROM application")
+    total = cur.fetchone()['total']
+    cur.execute("SELECT COUNT(*) AS received FROM application WHERE status='Received'")
+    received = cur.fetchone()['received']
+    cur.execute("SELECT COUNT(*) AS verified FROM application WHERE status='Verified'")
+    verified = cur.fetchone()['verified']
+    cur.execute("SELECT COUNT(*) AS processing FROM application WHERE status='Processing'")
+    processing = cur.fetchone()['processing']
+    cur.execute("SELECT COUNT(*) AS completed FROM application WHERE status='Completed'")
+    completed = cur.fetchone()['completed']
+    cur.execute("SELECT SUM(total_amount) AS revenue FROM application WHERE payment_status='Paid'")
+    revenue = cur.fetchone()['revenue'] or 0
+
+    # ✅ Applications Trend by Date
+    cur.execute("""
+        SELECT DATE(created_at) AS date, COUNT(*) AS count
+        FROM application
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at)
+    """)
+    trend = cur.fetchall()
+
+    # ✅ Service Wise Count
+    cur.execute("""
+        SELECT service_name, COUNT(*) AS count
+        FROM application
+        GROUP BY service_name
+    """)
+    service_data = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "analytics.html",
+        total=total,
+        received=received,
+        verified=verified,
+        processing=processing,
+        completed=completed,
+        revenue=revenue,
+        trend=trend,
+        service_data=service_data
+    )
+
+
 # ✅ Routes
 @app.route('/')
 def home():
@@ -221,94 +298,6 @@ def login_user():
             flash("❌ Email not found!", "error")
 
     return render_template('login.html')
-
-# Admin Dashboard Route
-@app.route("/admin/dashboard")
-def admin_dashboard():
-    if not session.get("admin"):   # protect admin section
-        return redirect(url_for("login"))
-
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-
-    cur.execute("SELECT * FROM application ORDER BY id DESC")
-    applications = cur.fetchall()
-
-    conn.close()
-
-    return render_template("admin_dashboard.html", applications=applications)
-
-@app.route("/update_status/<app_id>/<new_status>")
-def update_status(app_id, new_status):
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        "UPDATE application SET status=%s WHERE app_id=%s",
-        (new_status, app_id)
-    )
-
-    conn.commit()
-    conn.close()
-    
-    return redirect(url_for("admin_dashboard"))
-
-@app.route("/admin/analytics")
-def admin_analytics():
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-
-    # ✅ KPI Metrics
-    cur.execute("SELECT COUNT(*) AS total FROM application")
-    total = cur.fetchone()['total']
-
-    cur.execute("SELECT COUNT(*) AS received FROM application WHERE status='Received'")
-    received = cur.fetchone()['received']
-
-    cur.execute("SELECT COUNT(*) AS verified FROM application WHERE status='Verified'")
-    verified = cur.fetchone()['verified']
-
-    cur.execute("SELECT COUNT(*) AS processing FROM application WHERE status='Processing'")
-    processing = cur.fetchone()['processing']
-
-    cur.execute("SELECT COUNT(*) AS completed FROM application WHERE status='Completed'")
-    completed = cur.fetchone()['completed']
-
-    cur.execute("SELECT SUM(total_amount) AS revenue FROM application WHERE payment_status='Paid'")
-    revenue = cur.fetchone()['revenue'] or 0
-
-    # ✅ Applications Trend by Date
-    cur.execute("""
-        SELECT DATE(created_at) AS date, COUNT(*) AS count
-        FROM application
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
-    """)
-    trend = cur.fetchall()
-
-    # ✅ Service Wise Count
-    cur.execute("""
-        SELECT service_name, COUNT(*) AS count
-        FROM application
-        GROUP BY service_name
-    """)
-    service_data = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return render_template(
-        "analytics.html",
-        total=total,
-        received=received,
-        verified=verified,
-        processing=processing,
-        completed=completed,
-        revenue=revenue,
-        trend=trend,
-        service_data=service_data
-    )
-
 
 # ✅ Route: forgot_password
 @app.route('/forgot_password', methods=['GET', 'POST'])
@@ -435,27 +424,9 @@ def application_form(id):
         service["documents"] = []
 
     if request.method == "POST":
+        # Limit size: 2MB
+        MAX_FILE_SIZE = 2 * 1024 * 1024  
         file = request.files.get("document")
-
-        if not file or file.filename == "":
-            flash("Please upload the required document.", "warning")
-            return redirect(request.url)
-        
-        # Allowed extensions
-        allowed_ext = {"pdf", "jpg", "jpeg", "png"}
-        if "." not in file.filename or file.filename.rsplit(".", 1)[1].lower() not in allowed_ext:
-            flash("Invalid file type. Allowed: PDF, JPG, JPEG, PNG", "danger")
-            return redirect(request.url)
-        
-        # ----------- SAVE FILE SECURELY -------------
-        original_name = secure_filename(file.filename)
-        ext = original_name.rsplit(".", 1)[1].lower()
-
-        unique_name = f"{uuid.uuid4().hex}.{ext}"
-
-        upload_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
-        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-        file.save(upload_path)
         
         # Temporarily store form details in session
         session["form_data"] = {

@@ -71,5 +71,40 @@
     </form>
   </div>
 </div>
+<script>
+document.querySelector("form").addEventListener("submit", function (e) {
+
+    const allowedExt = ["pdf", "jpg", "jpeg", "png"];
+    const maxSize = 2 * 1024 * 1024; // 2 MB
+
+    let fileInputs = document.querySelectorAll("input[type='file']");
+    
+    for (let input of fileInputs) {
+        let file = input.files[0];
+
+        // Check if file is selected
+        if (!file) {
+            alert("Please upload all required documents.");
+            e.preventDefault();
+            return;
+        }
+
+        // Check extension
+        let fileExt = file.name.split(".").pop().toLowerCase();
+        if (!allowedExt.includes(fileExt)) {
+            alert("Invalid file type!\nAllowed: PDF, JPG, JPEG, PNG");
+            e.preventDefault();
+            return;
+        }
+
+        // Check file size
+        if (file.size > maxSize) {
+            alert("File size too large! Maximum allowed is 2MB.");
+            e.preventDefault();
+            return;
+        }
+    }
+});
+</script>
 {% endblock %}
 
