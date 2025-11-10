@@ -20,6 +20,9 @@ from email.mime.base import MIMEBase
 from email import encoders
 from functools import wraps
 from werkzeug.utils import secure_filename
+from flask import session
+from datetime import timedelta
+from functools import wraps
 import io, os, pdfkit
 import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
@@ -193,6 +196,120 @@ def admin_analytics():
         service_data=service_data
     )
 
+@app.route("/admin/settings", methods=["GET", "POST"])
+def admin_settings():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Fetch admin details (example)
+    cur.execute("SELECT * FROM users WHERE user_id = 2")
+    admin = cur.fetchone()
+
+    cur.execute("SELECT * FROM service")
+    services = cur.fetchall()
+
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+
+        cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=2",
+                    (name, email))
+        conn.commit()
+        flash("Updated!", "success")
+
+    conn.close()
+    return render_template("admin_settings.html", admin=admin, services=services)
+
+@app.route("/admin/settings/update_profile", methods=["POST"])
+def update_profile():
+    name = request.form.get("name")
+    email = request.form.get("email")
+    user_id = 2
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # Check if email is used by another admin
+    cur.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+    existing = cur.fetchone()
+    if existing and existing['user_id'] != user_id:
+        flash("Email already in use by another account.", "danger")
+        conn.close()
+        return redirect("/admin/settings")
+
+    # Perform update
+    cur.execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s",
+                (name, email, 2))
+    conn.commit()
+    conn.close()
+
+    flash("Profile updated successfully!", "success")
+    return redirect("/admin/settings")
+
+@app.route("/admin/settings/change_password", methods=["POST"])
+def change_password():
+    old_pw = request.form.get("old_password")
+    new_pw = request.form.get("new_password")
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("SELECT password FROM users WHERE user_id=2")
+    admin = cur.fetchone()
+
+    # Check old password
+    if not check_password_hash(admin["password"], old_pw):
+        flash("Old password is incorrect.", "danger")
+        return redirect("/admin/settings")
+
+    # Save new password
+    hashed = generate_password_hash(new_pw)
+    cur.execute("UPDATE users SET password=%s WHERE user_id=2", (hashed,))
+    conn.commit()
+    conn.close()
+
+    flash("Password updated!", "success")
+    return redirect("/admin/settings")
+
+# ✅ UPDATE SERVICE FEE
+@app.route("/admin/settings/update_fee/<int:id>", methods=["POST"])
+def update_fee(id):
+    fee = request.form.get("fee")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE service SET base_price=%s WHERE service_id=%s", (fee, id))
+    conn.commit()
+    conn.close()
+
+    flash("Service fee updated!", "success")
+    return redirect("/admin/settings")
+
+# ✅ TOGGLE SERVICE ACTIVE/INACTIVE
+@app.route("/admin/settings/toggle_service/<int:id>", methods=["POST"])
+def toggle_service(id):
+    status = request.form.get("status")  # "on" or None
+
+    new_status = 1 if status == "on" else 0
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE service SET is_active=%s WHERE service_id=%s",
+                (new_status, id))
+    conn.commit()
+    conn.close()
+
+    flash("Service status updated!", "success")
+    return redirect("/admin/settings")
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
 
 # ✅ Routes
 @app.route('/')
@@ -213,22 +330,27 @@ def login():
     return render_template('login.html')
 
 @app.route('/terms')
+@login_required
 def terms():
     return render_template('terms.html')
 
 @app.route('/privacy')
+@login_required
 def privacy():
     return render_template('privacy.html')
 
 @app.route('/faq')
+@login_required
 def faq():
     return render_template('faq.html')
 
 @app.route('/contact')
+@login_required
 def contact():
     return render_template('contact.html')
 
 @app.route('/about')
+@login_required
 def about():
     # Example: decide whether to show the login button in header
     # If user is logged in you might set session['user_id'] somewhere else after login
@@ -268,6 +390,9 @@ def register_user():
         flash(f"An error occurred: {e}", "Enter unique e-mail id")
         return redirect(url_for('register'))
 
+# ✅ Session timeout: auto logout after 30 minutes
+app.permanent_session_lifetime = timedelta(minutes=30)
+
 # ✅ Route: login_user
 @app.route('/login', methods=['GET', 'POST'])
 def login_user():
@@ -289,6 +414,7 @@ def login_user():
 
         if user:
             if check_password_hash(user['password'], password):
+                session.permanent = True   # ✅ Enable session timeout
                 session['user_id'] = user['user_id']
                 session['email'] = user['email']
                 return render_template('log.html')
@@ -355,13 +481,19 @@ def send_message():
 
 # ✅ Route to display all services
 @app.route('/services')
+#@login_required
 def services():
     conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM service WHERE is_active = 1")
+    services = cur.fetchall()
+
     if conn is None:
         flash("Database connection failed!", "danger")
         return render_template('services.html', services=[])
     try:
         cursor = conn.cursor(dictionary=True)
+        
         cursor.execute("SELECT service_id, title, short_desc, base_price, documents, image FROM service")
         services = cursor.fetchall()
         if not services:
@@ -479,7 +611,7 @@ def payment(id):
 def create_order():
     data = request.get_json()
     amount = data.get("amount")  # amount in paise
-    client = razorpay.Client(auth=("rzp_test_RYA0tri2cAfoE8", "FuIi5rksxQoJ294Qg9trERek"))
+    client = razorpay.Client(auth=("rzp_test_Rcq1OkhS35AWp9", "ldq5ru7Am3Q19qxjUHhF5w7x"))
     order = client.order.create({
         "amount": amount,
         "currency": "INR",
