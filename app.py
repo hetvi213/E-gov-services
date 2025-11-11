@@ -556,42 +556,60 @@ def application_form(id):
 
     # Convert "Aadhaar, PAN" → ["Aadhaar", "PAN"]
     if service.get("documents"):
-        service["documents"] = [doc.strip() for doc in service["documents"].split(",")]
+        service["documents"] = [doc.strip() for doc in service["documents"].split(" , ")]
     else:
         service["documents"] = []
 
     # --------------- POST HANDLING ----------------
     if request.method == "POST":
 
-        MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
-        uploaded_files = {}  # stores doc_name: filename
+        MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
+        uploaded_files = {}
 
-        # loop through required documents
+        # Loop through each document
         for doc_name in service["documents"]:
+
+            # Checkbox value (on/off)
+            checkbox_val = request.form.get(f"{doc_name}_checked")
+
+            # File input
             file = request.files.get(doc_name)
 
-            if not file or file.filename == "":
-                flash(f"Please upload {doc_name}", "danger")
-                return redirect(request.url)
+            # CASE A → Checkbox checked → file must be uploaded
+            if checkbox_val == "on":
 
-            # Validate file size
-            file_bytes = file.read()
-            if len(file_bytes) > MAX_FILE_SIZE:
-                flash(f"{doc_name} must be less than 2MB", "danger")
-                return redirect(request.url)
+                if not file or file.filename == "":
+                    flash(f"Please upload required document: {doc_name}", "danger")
+                    return redirect(request.url)
 
-            file.seek(0)
+                file_bytes = file.read()
+                if len(file_bytes) > MAX_FILE_SIZE:
+                    flash(f"{doc_name} must be less than 2MB", "danger")
+                    return redirect(request.url)
 
-            # secure filename
-            filename = secure_filename(f"{doc_name}_{file.filename}")
+                file.seek(0)
 
-            # save temporarily
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(file_path)
+                filename = secure_filename(f"{doc_name}_{file.filename}")
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
 
-            uploaded_files[doc_name] = filename
+                uploaded_files[doc_name] = filename
 
-        # Save user details + files to session until payment succeeds
+            # CASE B → Checkbox not checked → File is optional
+            else:
+                if file and file.filename != "":
+                    file_bytes = file.read()
+                    if len(file_bytes) > MAX_FILE_SIZE:
+                        flash(f"{doc_name} must be less than 2MB", "danger")
+                        return redirect(request.url)
+
+                    file.seek(0)
+
+                    filename = secure_filename(f"{doc_name}_{file.filename}")
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+                    uploaded_files[doc_name] = filename
+
+        # Save into session
         session["form_data"] = {
             "service_id": id,
             "name": request.form["name"],
@@ -605,6 +623,7 @@ def application_form(id):
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
+
 
 
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
@@ -654,7 +673,6 @@ def create_order():
 @app.route('/submit_application', methods=['GET', 'POST'])
 def submit_application():
     form_data = session.get("form_data")
-
     if not form_data:
         flash("No application data found. Please start again.", "warning")
         return redirect(url_for("services"))
@@ -662,16 +680,13 @@ def submit_application():
     # generate application ID
     app_id = f"APP-{random.randint(1000, 9999)}"
 
-    # ------------------------
     # Handle uploaded documents
-    # ------------------------
     temp_folder = "uploads"
     final_folder = "uploads_final"
     os.makedirs(final_folder, exist_ok=True)
 
     uploaded_files = form_data.get("uploaded_files", {})
     final_files = []
-
     for doc_name, filename in uploaded_files.items():
         temp_path = os.path.join(temp_folder, filename)
 
@@ -684,11 +699,8 @@ def submit_application():
 
         final_files.append(new_filename)
 
-    files_string = ",".join(final_files)
+    files_string = " , ".join(final_files)
 
-    # ------------------------
-    # Insert into DB
-    # ------------------------
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 

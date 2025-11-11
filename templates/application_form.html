@@ -48,12 +48,21 @@
         </h4>
         <div class="space-y-3">
           {% for doc in service.documents %}
-          <div>
-            <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">{{ doc }}</label>
-            <input type="file" name="{{ doc }}" required
-              class="w-full text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 focus:ring-2 focus:ring-green-500 focus:outline-none">
-          </div>
-          {% endfor %}
+    <div class="p-4 border rounded-lg dark:border-gray-600">
+
+      <!-- Checkbox -->
+      <label class="flex items-center gap-2 mb-2">
+        <input type="checkbox" class="doc-check" data-doc="{{ doc }}">
+        <span class="text-gray-800 dark:text-gray-200 font-medium">
+          I want to submit: {{ doc }}
+        </span>
+      </label>
+
+      <!-- Always visible file upload -->
+      <input type="file" name="{{ doc }}" class="doc-file w-full border dark:border-gray-600 rounded-lg py-2 px-3">
+
+    </div>
+    {% endfor %}
         </div>
       </div>
 
@@ -73,35 +82,40 @@
 </div>
 <script>
 document.querySelector("form").addEventListener("submit", function (e) {
-
-    const allowedExt = ["pdf", "jpg", "jpeg", "png"];
-    const maxSize = 2 * 1024 * 1024; // 2 MB
-
-    let fileInputs = document.querySelectorAll("input[type='file']");
     
-    for (let input of fileInputs) {
-        let file = input.files[0];
+    const allowedExt = ["pdf", "jpg", "jpeg", "png"];
+    const maxSize = 2 * 1024 * 1024;
 
-        // Check if file is selected
-        if (!file) {
-            alert("Please upload all required documents.");
-            e.preventDefault();
-            return;
-        }
+    let checks = document.querySelectorAll(".doc-check");
 
-        // Check extension
-        let fileExt = file.name.split(".").pop().toLowerCase();
-        if (!allowedExt.includes(fileExt)) {
-            alert("Invalid file type!\nAllowed: PDF, JPG, JPEG, PNG");
-            e.preventDefault();
-            return;
-        }
+    for (let chk of checks) {
+        let doc = chk.getAttribute("data-doc");
+        let fileInput = document.querySelector(`input[name='${doc}']`);
 
-        // Check file size
-        if (file.size > maxSize) {
-            alert("File size too large! Maximum allowed is 2MB.");
-            e.preventDefault();
-            return;
+        // If checkbox is checked → file MUST be uploaded
+        if (chk.checked) {
+
+            if (!fileInput.files.length) {
+                alert(`Please upload file for: ${doc}`);
+                e.preventDefault();
+                return;
+            }
+
+            // Validate ext
+            let file = fileInput.files[0];
+            let ext = file.name.split(".").pop().toLowerCase();
+
+            if (!allowedExt.includes(ext)) {
+                alert(`Invalid file type for ${doc}`);
+                e.preventDefault();
+                return;
+            }
+
+            if (file.size > maxSize) {
+                alert(`${doc} must be under 2MB`);
+                e.preventDefault();
+                return;
+            }
         }
     }
 });
