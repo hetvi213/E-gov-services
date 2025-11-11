@@ -23,7 +23,8 @@ from werkzeug.utils import secure_filename
 from flask import session
 from datetime import timedelta
 from functools import wraps
-import io, os, pdfkit
+from flask_bcrypt import Bcrypt
+import io, os, pdfkit, bcrypt
 import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
@@ -311,6 +312,18 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def send_reset_otp(email, otp):
+    msg = EmailMessage()
+    msg["Subject"] = "Password Reset OTP"
+    msg["From"] = "hetvi5007@gmail.com"
+    msg["To"] = email
+    msg.set_content(f"Your OTP for password reset is: {otp}")
+
+    # Gmail SMTP
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
+        smtp.send_message(msg)
+
 # ✅ Routes
 @app.route('/')
 def home():
@@ -426,46 +439,85 @@ def login_user():
     return render_template('login.html')
 
 # ✅ Route: forgot_password
-@app.route('/forgot_password', methods=['GET', 'POST'])
+@app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
-    if request.method == 'POST':
-        email = request.form['email']
+    if request.method == "POST":
+        email = request.form.get("email")
+
+        # Check if the user exists
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cursor.fetchone()
-        conn.close()
-        if user:
-            # Generate temporary password or reset token
-            temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            hashed_temp_password = generate_password_hash(temp_password)
-            # Update password in DB (temporary)
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET password=%s WHERE email=%s", (hashed_temp_password, email))
-            conn.commit()
-            conn.close()
-            # Send email to user (simplest SMTP example)
-            try:
-                msg = EmailMessage()
-                msg.set_content(f"Your temporary password is: {temp_password}\nPlease login and change it immediately.")
-                msg['Subject'] = 'Reset Your Password'
-                msg['From'] = 'hetvi5007@gmail.com'
-                msg['To'] = email
 
-                # Replace SMTP settings with your email provider
-                with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
-                    smtp.starttls()
-                    smtp.login('hetvi5007@gmail.com', 'Malti@213')
-                    smtp.send_message(msg)
-                flash("A temporary password has been sent to your email.", "success")
-            except Exception as e:
-                flash(f"Failed to send email: {e}", "error")
-        else:
+        if not user:
             flash("Email not found!", "error")
-    return render_template('forgot_password.html')
+            return redirect("/forgot_password")
 
+        # Generate OTP
+        otp = random.randint(100000, 999999)
 
+        # Store OTP in session
+        session["reset_email"] = email
+        session["reset_otp"] = otp
+
+        # Send OTP email
+        send_reset_otp(email, otp)
+
+        flash("OTP sent to your email!", "success")
+        return redirect("/verify_otp")
+
+    return render_template("forgot_password.html")
+
+@app.route("/verify_otp", methods=["GET", "POST"])
+def verify_otp():
+    if request.method == "POST":
+        entered_otp = request.form.get("otp")
+
+        if str(session.get("reset_otp")) == str(entered_otp):
+            return redirect("/reset_password")
+        else:
+            flash("Incorrect OTP!", "error")
+            return redirect("/verify_otp")
+
+    return render_template("verify_otp.html")
+
+@app.route("/reset_password", methods=["GET", "POST"])
+def reset_password():
+    if request.method == "POST":
+        password = request.form.get("password")
+
+        # ❗ Fix: Ensure password is not None
+        if not password:
+            flash("Password cannot be empty!", "error")
+            return redirect("/reset_password")
+
+        # Hash the password
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        email = session.get("reset_email")
+
+        if not email:
+            flash("Session expired! Try again.", "error")
+            return redirect("/forgot_password")
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET password=%s WHERE email=%s",
+            (hashed_password, email)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # Clear session
+        session.pop("reset_email", None)
+        session.pop("reset_otp", None)
+
+        flash("Password reset successfully! Login now.", "success")
+        return redirect("/login")
+
+    return render_template("reset_password.html")
 
 
 @app.route('/send_message', methods=['POST'])
