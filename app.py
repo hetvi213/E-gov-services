@@ -1,15 +1,13 @@
 from MySQLdb import MySQLError
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify, send_file, make_response, send_from_directory
 from mysql.connector import Error
-from werkzeug.security import generate_password_hash
 from flask_mysqldb import MySQL
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.mysql import JSON
 from email.message import EmailMessage
-from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from flask_mail import Mail, Message
@@ -21,9 +19,6 @@ from email import encoders
 from functools import wraps
 from werkzeug.utils import secure_filename
 from flask import session
-from datetime import timedelta
-from functools import wraps
-from flask_bcrypt import Bcrypt
 import io, os, pdfkit, bcrypt
 import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
@@ -40,15 +35,19 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["UPLOAD_FOLDER"] = "uploads"
 
 # ✅ Flask Mail Connection
-app.config.update(
-    MAIL_SERVER='smtp.gmail.com',
-    MAIL_PORT=587,
-    MAIL_USE_TLS=True,
-    MAIL_USERNAME='hetvi5007@gmail.com',
-    MAIL_PASSWORD=''  # Use Google App Password
-)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'hetvi5007@gmail.com'
+app.config['MAIL_PASSWORD'] = 'jyoibgqmyckxewuz'  # Use an App Password, not your real Gmail password
 mail = Mail(app)
 
+# ✅ Flask Twilio Connection
+ACCOUNT_SID = "AC5b329f9457b1a375174144626bd26a1d"
+AUTH_TOKEN = "8a83642953202aab7d79f30ee90e0278"
+TWILIO_PHONE = "+14155238886"  
+client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
 # ✅ Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -324,6 +323,21 @@ def send_reset_otp(email, otp):
         smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
         smtp.send_message(msg)
 
+def generate_receipt_pdf(application):
+    # HTML receipt rendering
+    rendered_html = render_template(
+        "pdf_receipt.html",
+        app_id=application["app_id"],
+        submission_date=application["submission_date"],
+        service_name=application["service_name"]
+    )
+    # Path to wkhtmltopdf
+    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
+    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
+    return pdf_path
+
 # ✅ Routes
 @app.route('/')
 def home():
@@ -442,42 +456,74 @@ def login_user():
 @app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email")
+        user_input = request.form.get("identifier")
 
-        # Check if the user exists
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cursor.fetchone()
-
-        if not user:
-            flash("Email not found!", "error")
+        # ✅ Step 1: Validate input
+        if not user_input or user_input.strip() == "":
+            flash("Please enter your email or phone number.", "error")
             return redirect("/forgot_password")
 
-        # Generate OTP
-        otp = random.randint(100000, 999999)
+        user_input = user_input.strip()
 
-        # Store OTP in session
-        session["reset_email"] = email
+        # ✅ Step 2: Generate OTP
+        otp = str(random.randint(100000, 999999))
         session["reset_otp"] = otp
 
-        # Send OTP email
-        send_reset_otp(email, otp)
+        # ✅ Step 3: Check if it's email or phone safely
+        if "@" in user_input:
+            # ----- Email OTP -----
+            session["reset_email"] = user_input
+            session.pop("reset_phone", None)
+            try:
+                with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+                    smtp.starttls()
+                    smtp.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+                    subject = "Your OTP for Password Reset"
+                    body = f"Your OTP for resetting password is {otp}"
+                    msg = f"Subject: {subject}\n\n{body}"
+                    smtp.sendmail(app.config['MAIL_USERNAME'], user_input, msg)
+                flash("OTP sent to your email.", "info")
+            except Exception as e:
+                flash("Failed to send OTP via email: " + str(e), "error")
 
-        flash("OTP sent to your email!", "success")
+        else:
+            # ----- SMS OTP -----
+            if not user_input.startswith("+"):
+                user_input = "+91" + user_input  # Default India code
+            session["reset_phone"] = user_input
+            session.pop("reset_email", None)
+            try:
+                client.messages.create(
+                    body=f"Your OTP for password reset is {otp}.",
+                    from_=TWILIO_PHONE,
+                    to=user_input
+                )
+                flash("OTP sent via SMS.", "info")
+            except Exception as e:
+                flash("Failed to send OTP via SMS: " + str(e), "error")
+
         return redirect("/verify_otp")
 
     return render_template("forgot_password.html")
+
 
 @app.route("/verify_otp", methods=["GET", "POST"])
 def verify_otp():
     if request.method == "POST":
         entered_otp = request.form.get("otp")
+        saved_otp = session.get("reset_otp")
 
-        if str(session.get("reset_otp")) == str(entered_otp):
+        # ✅ Step 1: Check if session exists
+        if not saved_otp:
+            flash("Session expired! Please request a new OTP.", "error")
+            return redirect("/forgot_password")
+
+        # ✅ Step 2: Compare safely (as strings)
+        if entered_otp and entered_otp.strip() == str(saved_otp).strip():
+            flash("✅ OTP verified successfully! You can now reset your password.", "success")
             return redirect("/reset_password")
         else:
-            flash("Incorrect OTP!", "error")
+            flash("❌ Invalid OTP! Please try again.", "error")
             return redirect("/verify_otp")
 
     return render_template("verify_otp.html")
@@ -487,36 +533,51 @@ def reset_password():
     if request.method == "POST":
         password = request.form.get("password")
 
-        # ❗ Fix: Ensure password is not None
-        if not password:
+        # ✅ Step 1: Validate input
+        if not password or password.strip() == "":
             flash("Password cannot be empty!", "error")
             return redirect("/reset_password")
 
-        # Hash the password
-        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-        email = session.get("reset_email")
+        # ✅ Step 2: Hash password safely
+        try:
+            hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        except Exception as e:
+            flash("Error while hashing password: " + str(e), "error")
+            return redirect("/reset_password")
 
-        if not email:
-            flash("Session expired! Try again.", "error")
+        # ✅ Step 3: Get email or phone from session
+        email = session.get("reset_email")
+        phone = session.get("reset_phone")
+
+        if not email and not phone:
+            flash("Session expired! Please request OTP again.", "error")
             return redirect("/forgot_password")
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE users SET password=%s WHERE email=%s",
-            (hashed_password, email)
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
+        # ✅ Step 4: Update password in DB
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
 
-        # Clear session
-        session.pop("reset_email", None)
-        session.pop("reset_otp", None)
+            if email:
+                cursor.execute("UPDATE users SET password=%s WHERE email=%s", (hashed_password, email))
+            else:
+                cursor.execute("UPDATE users SET password=%s WHERE phone=%s", (hashed_password, phone))
 
-        flash("Password reset successfully! Login now.", "success")
-        return redirect("/login")
+            conn.commit()
+            cursor.close()
+            conn.close()
 
+            # ✅ Step 5: Clear OTP session data
+            session.pop("reset_email", None)
+            session.pop("reset_phone", None)
+            session.pop("reset_otp", None)
+
+            flash("Password reset successfully! You can now log in.", "success")
+            return redirect("/login")
+
+        except Exception as e:
+            flash("Database error: " + str(e), "error")
+            return redirect("/reset_password")
     return render_template("reset_password.html")
 
 
@@ -722,6 +783,51 @@ def create_order():
     })
     return jsonify(order)
 
+@app.route('/generate_pdf/<app_id>')
+def generate_pdf(app_id):
+    # Fetch application data
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
+    app_data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not app_data:
+        return "Application not found", 404
+
+    # Get service name
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT title FROM service WHERE service_id = %s", (app_data['service_id'],))
+    service = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    service_name = service['title'] if service else "Unknown Service"
+    submission_date = app_data['created_at']
+    
+    # ✅ Render the receipt HTML
+    rendered_html = render_template(
+        'pdf_receipt.html',
+        app_id=app_data['app_id'],
+        submission_date=submission_date,
+        service_name=service_name
+    )
+    # ✅ Path to wkhtmltopdf (update this to your system path)
+    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+
+    pdf = pdfkit.from_string(rendered_html, False, configuration=config)
+
+    # ✅ Return as downloadable PDF file
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename={app_id}_receipt.pdf'
+    return response
+
+
+
 @app.route('/submit_application', methods=['GET', 'POST'])
 def submit_application():
     form_data = session.get("form_data")
@@ -777,6 +883,40 @@ def submit_application():
         "Received"
     ))
 
+     # Prepare email content
+    msg = Message(
+        subject="Application Submitted Successfully – Krishi E-Government Services",
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[form_data["email"]]
+    )
+    msg.html = render_template('email_receipt.html', 
+                               app_id=app_id, 
+                               date=submission_date, 
+                               service=service["title"])
+
+    mail.send(msg)
+
+    '''
+    # WhatsApp message content
+    whatsapp_message = f"""
+    ✅ *Application Submitted Successfully!*
+
+    Thank you for using Krishi E-Government Services.
+
+    *Application ID:* {app_id}
+    *Service:* {service}
+    *Date:* {submission_date}
+    You can track your application status in the portal.
+    """
+
+    # Send message via Twilio WhatsApp
+    client.messages.create(
+        from_=+14155238886,
+        body=whatsapp_message,
+        to=f'whatsapp:+91{form_data["mobile"]}'
+    )
+    '''
+    
     conn.commit()
     cursor.close()
     conn.close()
@@ -824,7 +964,6 @@ def track_application_form():
             flash("Application not found", "danger")
 
     return render_template('track.html', application=application, searched=searched)
-
 
 @app.route('/track/<string:app_id>')
 def track_application(app_id):
@@ -886,79 +1025,6 @@ def send_whatsapp_receipt(application):
     )
 
 
-'''
-# ----------------------- PDF Generation ----------------------------
-def generate_receipt_pdf(application):
-    pdf_path = f"static/receipts/{application['app_id']}.pdf"
-    os.makedirs("static/receipts", exist_ok=True)
-
-    c = canvas.Canvas(pdf_path, pagesize=A4)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(200, 800, "Application Receipt")
-
-    c.setFont("Helvetica", 12)
-    c.drawString(100, 760, f"Application ID: {application['app_id']}")
-    c.drawString(100, 740, f"Name: {application['name']}")
-    c.drawString(100, 720, f"Email: {application['email']}")
-    c.drawString(100, 700, f"Mobile: {application['mobile']}")
-    c.drawString(100, 680, f"Service: {application['service_name']}")
-    c.drawString(100, 660, f"Total Amount: ₹{application['total_amount']}")
-    c.drawString(100, 640, f"Status: {application['status']}")
-    c.save()
-
-    return pdf_path
-
-# ----------------------- Submit Application Route -------------------
-@app.route('/submit_application', methods=['POST'])
-def submit_application():
-    service_id = request.form.get('service_id')
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE id = %s", (service_id,))
-    service = cursor.fetchone()
-    if not service:
-        # Handle missing service safely
-        return "Service not found", 404
-    form_data = session.get("form_data")
-    app_id = generate_app_id()
-    submission_date = datetime.now().strftime("%d-%m-%Y")
-    service_name = service["title"] if service else "Unknown Service"
-
-    cursor.execute("""
-            INSERT INTO application (app_id, service_id, name, email, mobile, service_name, total_amount, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            app_id,
-            form_data["service_id"],
-            form_data["name"],
-            form_data["email"],
-            form_data["mobile"],
-            form_data["title"],
-            form_data["total_amount"],
-            "Submitted"
-        ))
-    
-    conn.commit()
-
-    cursor.execute("SELECT * FROM application ORDER BY id DESC LIMIT 1")
-    application = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-     # Generate PDF and send WhatsApp
-    pdf_path = generate_receipt_pdf(application)
-    #send_whatsapp_receipt(application)
-
-    return render_template(
-        'application_submitted.html',
-        app_id=app_id,
-        submission_date=submission_date,
-        service_name=service_name
-    )
-
-    '''
 def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
     sender_email = "hetvi5007@gmail.com"
     sender_password = "cbedkaqjtytrihfw"  # NOT your Gmail password!
@@ -1003,119 +1069,6 @@ def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
         print(f"✅ Email sent successfully to {receiver_email}")
     except Exception as e:
         print(f"❌ Error sending email: {e}")
-
-
-
-
-def generate_receipt_pdf(application):
-    # HTML receipt rendering
-    rendered_html = render_template(
-        "pdf_receipt.html",
-        app_id=application["app_id"],
-        submission_date=application["submission_date"],
-        service_name=application["service_name"]
-    )
-
-    # Path to wkhtmltopdf
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
-    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
-    return pdf_path
-
-'''
-# ---------- Submit Application ----------
-@app.route('/submit_application', methods=['POST'])
-def submit_application():
-    service_id = request.form.get('service_id')
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE service_id = %s", (service_id,))
-    service = cursor.fetchone()
-    if not service:
-        # Handle missing service safely
-        return "Service not found", 404
-    form_data = session.get("form_data")
-    app_id = generate_app_id()
-    submission_date = datetime.now().strftime("%d-%m-%Y")
-    service_name = service["title"] if service else "Unknown Service"
-
-    cursor.execute("""
-            INSERT INTO application (app_id, service_id, name, email, mobile, service_name, total_amount, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            app_id,
-            form_data["service_id"],
-            form_data["name"],
-            form_data["email"],
-            form_data["mobile"],
-            form_data["title"],
-            form_data["total_amount"],
-            "Submitted"
-        ))
-    
-    conn.commit()
-
-    cursor.execute("SELECT * FROM application ORDER BY id DESC LIMIT 1")
-    application = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-     # Generate PDF and send WhatsApp
-    pdf_path = generate_receipt_pdf(application)
-    #send_whatsapp_receipt(application)
-
-    return render_template(
-        'application_submitted.html',
-        app_id=app_id,
-        submission_date=submission_date,
-        service_name=service_name
-    )
-
-# ---------- Application Submitted ----------
-@app.route('/application_submitted/<int:app_id>')
-def application_submitted(app_id):
-    app_id = session.get('last_app_id')
-    if not app_id:
-        return redirect(url_for('services'))
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
-    app_data = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not app_data:
-        return "Application not found", 404
-    return render_template('application_submitted.html', app_id=app_id)
-
-
-@app.route('/application_submitted')
-def application_submitted():
-    app_id = session.get('last_app_id')
-    if not app_id:
-        return redirect(url_for('services'))
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
-    app_data = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not app_data:
-        return "Application not found", 404
-
-    return render_template(
-        'application_submitted.html',
-        app_id=app_data['app_id'],
-        submission_date=app_data['submission_date'],
-        service_name=app_data['service_name']
-    )
-'''
 
 @app.route('/payment_success', methods=['POST'])
 def payment_success():
@@ -1177,57 +1130,6 @@ def payment_success():
 
     # Redirect user to success/receipt page
     return redirect(url_for('application_submitted'))
-
-
-
-
-
-@app.route('/generate_pdf/<app_id>')
-def generate_pdf(app_id):
-    # Fetch application data
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
-    app_data = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not app_data:
-        return "Application not found", 404
-
-    # Get service name
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT title FROM service WHERE service_id = %s", (app_data['service_id'],))
-    service = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    service_name = service['title'] if service else "Unknown Service"
-    submission_date = app_data['created_at']
-    
-    # ✅ Render the receipt HTML
-    rendered_html = render_template(
-        'pdf_receipt.html',
-        app_id=app_data['app_id'],
-        submission_date=submission_date,
-        service_name=service_name
-    )
-
-    # ✅ Path to wkhtmltopdf (update this to your system path)
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-
-    # ✅ Correct variable: use `rendered_html`, not `html_content`
-    pdf = pdfkit.from_string(rendered_html, False, configuration=config)
-
-    # ✅ Return as downloadable PDF file
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename={app_id}_receipt.pdf'
-    return response
-
-
 
 
 if __name__ == "__main__":
