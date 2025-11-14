@@ -344,9 +344,9 @@ def send_document_email(to_email, document_path):
     msg = MIMEMultipart()
     msg["From"] = sender
     msg["To"] = to_email
-    msg["Subject"] = "Your Application Document"
+    msg["Subject"] = "Your Completed Document"
 
-    msg.attach(MIMEText("Your application has been completed. Please find your document attached."))
+    msg.attach(MIMEText("Your application has been completed. Please find the attached document."))
 
     # Attach document
     with open(document_path, "rb") as f:
@@ -631,6 +631,35 @@ def admin_guide_detail(slug):
         return "Guide not found", 404
     return render_template("admin_guide.html", guide=guide)
 
+@app.route("/chatbot")
+def chatbot_page():
+    return render_template("chatbot.html")
+
+@app.route("/chatbot/ask", methods=["POST"])
+def chatbot_ask():
+    data = request.get_json()
+    question = data.get("question", "").lower()
+
+    # Simple rule-based responses (can upgrade later)
+    responses = {
+        "register": "To register, go to the Register page and fill all fields correctly.",
+        "apply": "To apply for a service, open Services → Select service → Fill form → Submit.",
+        "forget password":"To reset the password go the Login page and click on 'forget password' button",
+        "forget the password":"To reset the password go the Login page and click on 'forget password' button",
+        "documents": "Upload clear documents in PDF/JPG only. Max size 2MB.",
+        "track": "Go to My Applications to track your status.",
+        "payment": "Payments are securely processed using Razorpay.",
+        "hello": "Hello! How can I help you today?",
+        "hi": "Hi! Ask me anything.",
+    }
+
+    for key in responses:
+        if key in question:
+            return jsonify({"answer": responses[key]})
+
+    # Default fallback
+    return jsonify({"answer": "I’m not sure about that. Please rephrase your question."})
+
 @app.route('/about')
 @login_required
 def about():
@@ -911,6 +940,7 @@ def application_form(id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM service WHERE service_id = %s", (id,))
     service = cursor.fetchone()
+    #print("RAW DOCUMENT STRING:", repr(service["documents"]))
     cursor.close()
     conn.close()
 
@@ -919,7 +949,7 @@ def application_form(id):
 
     # Convert "Aadhaar, PAN" → ["Aadhaar", "PAN"]
     if service.get("documents"):
-        service["documents"] = [doc.strip() for doc in service["documents"].split(" , ")]
+        service["documents"] = [doc.strip() for doc in service["documents"].split(",")]
     else:
         service["documents"] = []
 
@@ -938,6 +968,9 @@ def application_form(id):
             # File input
             file = request.files.get(doc_name)
 
+            # Text Box input
+            text_value = request.form.get(f"text_{doc_name}", "").strip()
+
             # CASE A → Checkbox checked → file must be uploaded
             if checkbox_val == "on":
 
@@ -954,8 +987,12 @@ def application_form(id):
 
                 filename = secure_filename(f"{doc_name}_{file.filename}")
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file_saved = filename
 
-                uploaded_files[doc_name] = filename
+                uploaded_files[doc_name] = {
+                "text": text_value if text_value else None,
+                "file": file_saved
+            }
 
             # CASE B → Checkbox not checked → File is optional
             else:
