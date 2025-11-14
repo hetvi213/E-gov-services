@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
+{% block content %}
+
+<section class="w-full max-w-4xl mx-auto bg-white dark:bg-[#052e16] rounded-lg shadow-md p-6">
+  
+  <h1 class="text-3xl font-bold text-primary text-center mb-6">User Guides</h1>
+
+  <div class="space-y-6">
+    {% for slug, item in guides.items() %}
+      <a href="/guides/user/{{ slug }}"
+         class="block p-5 bg-gray-50 dark:bg-[#041c10] border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition">
+        
+        <h2 class="text-xl font-semibold text-primary">{{ item.title }}</h2>
+        <p class="text-gray-600 dark:text-gray-300 text-sm mt-1">
+          {{ item.steps[0] }}...
+        </p>
+
+      </a>
+    {% endfor %}
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block footer %}
+  {% include "footer.html" %}
+{% endblock %}

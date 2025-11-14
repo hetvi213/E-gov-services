@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
+{% block content %}
+<section class="w-full max-w-3xl mx-auto bg-white dark:bg-[#052e16] rounded-lg shadow-md p-6">
+  
+  <h1 class="text-3xl font-bold text-primary text-center mb-6">
+    {{ tutorial.title }}
+  </h1>
+
+  <div class="space-y-4 text-gray-700 dark:text-gray-300">
+    {% for step in tutorial.steps %}
+      <p class="flex items-start gap-3">
+        <span class="font-bold text-primary">{{ loop.index }}.</span> 
+        {{ step }}
+      </p>
+    {% endfor %}
+  </div>
+
+  <div class="mt-8 text-center">
+    <a href="/tutorials" class="text-primary font-semibold hover:underline">
+      ← Back to Tutorials
+    </a>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block footer %}
+  {% include "footer.html" %}
+{% endblock %}

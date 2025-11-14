@@ -114,76 +114,6 @@ class ApplicationItem(db.Model):
     selected_documents = db.Column(JSON)  # list of selected doc names
     item_amount = db.Column(db.Numeric(10,2))
 
-# Functions
-def allowed_file(filename):
-    allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
-
-def send_document_email(to_email, document_path):
-    sender = "hetvi5007@gmail.com"
-    password = "jyoibgqmyckxewuz"
-
-    msg = MIMEMultipart()
-    msg["From"] = sender
-    msg["To"] = to_email
-    msg["Subject"] = "Your Application Document"
-
-    msg.attach(MIMEText("Your application has been completed. Please find your document attached."))
-
-    # Attach document
-    with open(document_path, "rb") as f:
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(f.read())
-
-    encoders.encode_base64(part)
-    part.add_header(
-        "Content-Disposition",
-        f"attachment; filename={document_path.split('/')[-1]}",
-    )
-
-    msg.attach(part)
-
-    # Send email
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(sender, password)
-    server.sendmail(sender, to_email, msg.as_string())
-    server.quit()
-    
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-def send_reset_otp(email, otp):
-    msg = EmailMessage()
-    msg["Subject"] = "Password Reset OTP"
-    msg["From"] = "hetvi5007@gmail.com"
-    msg["To"] = email
-    msg.set_content(f"Your OTP for password reset is: {otp}")
-
-    # Gmail SMTP
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
-        smtp.send_message(msg)
-
-def generate_receipt_pdf(application):
-    # HTML receipt rendering
-    rendered_html = render_template(
-        "pdf_receipt.html",
-        app_id=application["app_id"],
-        submission_date=application["submission_date"],
-        service_name=application["service_name"]
-    )
-    # Path to wkhtmltopdf
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
-    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
-    return pdf_path
 
 # Admin Dashboard Route
 @app.route("/admin/dashboard")
@@ -401,6 +331,233 @@ def toggle_service(id):
     flash("Service status updated!", "success")
     return redirect("/admin/settings")
 
+
+# Functions
+def allowed_file(filename):
+    allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
+
+def send_document_email(to_email, document_path):
+    sender = "hetvi5007@gmail.com"
+    password = "jyoibgqmyckxewuz"
+
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = "Your Application Document"
+
+    msg.attach(MIMEText("Your application has been completed. Please find your document attached."))
+
+    # Attach document
+    with open(document_path, "rb") as f:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(f.read())
+
+    encoders.encode_base64(part)
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename={document_path.split('/')[-1]}",
+    )
+
+    msg.attach(part)
+
+    # Send email
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(sender, password)
+    server.sendmail(sender, to_email, msg.as_string())
+    server.quit()
+    
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+def send_reset_otp(email, otp):
+    msg = EmailMessage()
+    msg["Subject"] = "Password Reset OTP"
+    msg["From"] = "hetvi5007@gmail.com"
+    msg["To"] = email
+    msg.set_content(f"Your OTP for password reset is: {otp}")
+
+    # Gmail SMTP
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
+        smtp.send_message(msg)
+
+def generate_receipt_pdf(application):
+    # HTML receipt rendering
+    rendered_html = render_template(
+        "pdf_receipt.html",
+        app_id=application["app_id"],
+        submission_date=application["submission_date"],
+        service_name=application["service_name"]
+    )
+    # Path to wkhtmltopdf
+    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
+    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
+    return pdf_path
+
+# Static tutorial data (no database)
+tutorial_details = {
+    "how-to-register-service": {
+        "title": "How to Create an Account",
+        "steps": [
+            "Go to the homepage and click on Register.",
+            "Enter your personal details such as name, email, phone, and password.",
+            "Click Create Account to register.",
+            "After successful registration, log in using your new credentials."
+        ]
+    },
+    "how-to-upload-documents": {
+        "title": "How to Apply for a Service",
+        "steps": [
+            "Log in to your dashboard.",
+            "Go to the Services page.",
+            "Select the service you want to apply for.",
+            "Fill in the application form.",
+            "Upload all required documents.",
+            "Click Submit to complete the application."
+        ]
+    },
+    "how-to-track-application": {
+        "title": "How to Track Your Application",
+        "steps": [
+            "Log in to your account.",
+            "Go to Track Page.",
+            "View the real-time status of your request: Pending → Processing → Completed."
+        ]
+    },
+    "how-to-download-documents": {
+        "title": "How to Download Completed Documents",
+        "steps": [
+            "Open your dashboard.",
+            "Go to My Applications.",
+            "Click the Download button for any completed service.",
+            "A copy is also sent to your email address."
+        ]
+    },
+    "contact-support": {
+        "title": "How to Contact Support",
+        "steps": [
+            "Go to the Contact page.",
+            "Fill out the support form with your issue.",
+            "Alternatively, you can email support@krishiservices.in.",
+            "Our team will respond within 24–48 hours."
+        ]
+    },
+}
+
+# Step-by-step guide data
+# ---------- USER GUIDES ----------
+user_guides = {
+    "how-to-register-service": {
+        "title": "How to Register for a Service",
+        "steps": [
+            "Go to the homepage and click Register.",
+            "Enter your details and create an account.",
+            "Log in to your dashboard.",
+            "Navigate to the Services page and choose a service."
+        ]
+    },
+    "how-to-apply-for-service": {
+        "title": "How to Apply for a Service",
+        "steps": [
+            "Log in to your account.",
+            "Open the Services page.",
+            "Select any service you want.",
+            "Fill out the form and upload documents.",
+            "Submit the application for processing."
+        ]
+    },
+    "how-to-track-application": {
+        "title": "How to Track Your Application",
+        "steps": [
+            "Login to your dashboard.",
+            "Go to My Applications.",
+            "Click on any service to check its status."
+        ]
+    },
+    "how-to-download-documents": {
+        "title": "How to Download Documents",
+        "steps": [
+            "Open My Applications.",
+            "Click Download next to the completed service.",
+            "The document will be downloaded to your device."
+        ]
+    },
+    "how-to-reset-password": {
+        "title": "How to Reset Your Password",
+        "steps": [
+            "Go to Login page.",
+            "Click Forgot Password.",
+            "Verify using OTP.",
+            "Create new password and login again."
+        ]
+    },
+    "contact-support": {
+        "title": "How to Contact Support",
+        "steps": [
+            "Go to Contact page.",
+            "Fill the support form with message.",
+            "Submit and wait for email reply within 24–48 hours."
+        ]
+    }
+}
+
+# ---------- ADMIN GUIDES ----------
+admin_guides = {
+    "admin-how-to-login": {
+        "title": "How to Access Admin Panel",
+        "steps": [
+            "Open the Admin Login URL.",
+            "Enter admin email & password.",
+            "Click Login to access dashboard."
+        ]
+    },
+    "admin-how-to-manage-services": {
+        "title": "How Admins Enable / Disable Services",
+        "steps": [
+            "Open Admin Panel.",
+            "Go to Services Management.",
+            "Toggle Enable/Disable for each service.",
+            "Changes reflect instantly for users."
+        ]
+    },
+    "admin-how-to-verify-applications": {
+        "title": "How Admins Verify Applications",
+        "steps": [
+            "Go to Applications section.",
+            "Select a Pending application.",
+            "Review submitted data & documents.",
+            "Click Verify → Status becomes Processing."
+        ]
+    },
+    "admin-how-to-complete-applications": {
+        "title": "How Admins Mark Applications Completed",
+        "steps": [
+            "Open an application with status Processing.",
+            "Upload final verified documents.",
+            "Click Mark Completed.",
+            "User gets email + download option."
+        ]
+    },
+    "admin-how-to-manage-users": {
+        "title": "How Admins Manage Users",
+        "steps": [
+            "Go to Users section in admin panel.",
+            "View all registered users.",
+            "Edit or block a user if needed."
+        ]
+    }
+}
+
+
 # ✅ Routes
 @app.route('/')
 def home():
@@ -438,6 +595,41 @@ def faq():
 @login_required
 def contact():
     return render_template('contact.html')
+
+@app.route("/tutorials")
+def tutorials():
+    return render_template("tutorials.html")
+
+@app.route("/tutorials/<slug>")
+def tutorial_detail(slug):
+    tutorial = tutorial_details.get(slug)
+    if not tutorial:
+        return "Tutorial not found", 404
+    return render_template("tutorial_detail.html", tutorial=tutorial)
+
+# USER guides list
+@app.route("/guides/user")
+def user_guides_page():
+    return render_template("guides.html", guides=user_guides)
+
+@app.route("/guides/user/<slug>")
+def user_guide_detail(slug):
+    guide = user_guides.get(slug)
+    if not guide:
+        return "Guide not found", 404
+    return render_template("guide_detail.html", guide=guide)
+
+# ADMIN guides list
+@app.route("/guides/admin")
+def admin_guides_page():
+    return render_template("admin_guides.html", guides=admin_guides)
+
+@app.route("/guides/admin/<slug>")
+def admin_guide_detail(slug):
+    guide = admin_guides.get(slug)
+    if not guide:
+        return "Guide not found", 404
+    return render_template("admin_guide.html", guide=guide)
 
 @app.route('/about')
 @login_required
