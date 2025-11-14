@@ -1,0 +1,23 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-md text-center">
+
+        <h2 class="text-3xl font-bold text-green-600 mb-3">
+            ✔ Application Completed
+        </h2>
+
+        <p class="text-gray-600 dark:text-gray-300 mb-6">
+            The application has been successfully marked as <b>Completed.</b> <br> The document has been
+            sent to the user’s email.
+        </p>
+
+        <a href="/admin/dashboard"
+           class="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition">
+           Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% endblock %}

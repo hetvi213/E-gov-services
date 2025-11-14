@@ -66,10 +66,12 @@
                            Processing
                         </a>
 
-                        <a href="/update_status/{{ row.app_id }}/Completed"
-                           class="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
-                           Completed
-                        </a>
+                        <form action="{{ url_for('complete_application', app_id=row.app_id) }}" method="POST" class="inline">
+    <button type="submit"
+            class="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
+        Completed
+    </button>
+</form>
 
                     </td>
                 </tr>

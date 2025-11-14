@@ -45,8 +45,8 @@ mail = Mail(app)
 
 # ✅ Flask Twilio Connection
 ACCOUNT_SID = "AC5b329f9457b1a375174144626bd26a1d"
-AUTH_TOKEN = "8a83642953202aab7d79f30ee90e0278"
-TWILIO_PHONE = "+14155238886"  
+AUTH_TOKEN = "6a10348ea972c8e8c64b7ba859e8ba02"
+TWILIO_PHONE = "+12173946575"  
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
 # ✅ Initialize SQLAlchemy
@@ -119,6 +119,71 @@ def allowed_file(filename):
     allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
     return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
 
+def send_document_email(to_email, document_path):
+    sender = "hetvi5007@gmail.com"
+    password = "jyoibgqmyckxewuz"
+
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = "Your Application Document"
+
+    msg.attach(MIMEText("Your application has been completed. Please find your document attached."))
+
+    # Attach document
+    with open(document_path, "rb") as f:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(f.read())
+
+    encoders.encode_base64(part)
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename={document_path.split('/')[-1]}",
+    )
+
+    msg.attach(part)
+
+    # Send email
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(sender, password)
+    server.sendmail(sender, to_email, msg.as_string())
+    server.quit()
+    
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+def send_reset_otp(email, otp):
+    msg = EmailMessage()
+    msg["Subject"] = "Password Reset OTP"
+    msg["From"] = "hetvi5007@gmail.com"
+    msg["To"] = email
+    msg.set_content(f"Your OTP for password reset is: {otp}")
+
+    # Gmail SMTP
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
+        smtp.send_message(msg)
+
+def generate_receipt_pdf(application):
+    # HTML receipt rendering
+    rendered_html = render_template(
+        "pdf_receipt.html",
+        app_id=application["app_id"],
+        submission_date=application["submission_date"],
+        service_name=application["service_name"]
+    )
+    # Path to wkhtmltopdf
+    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
+    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
+    return pdf_path
 
 # Admin Dashboard Route
 @app.route("/admin/dashboard")
@@ -143,6 +208,40 @@ def update_status(app_id, new_status):
     conn.commit()
     conn.close()
     return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/complete_application/<app_id>", methods=["POST"])
+def complete_application(app_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch application
+    cursor.execute("SELECT * FROM application WHERE app_id=%s", (app_id,))
+    application = cursor.fetchone()
+
+    if not application:
+        cursor.close()
+        conn.close()
+        return "Application not found", 404
+
+    # Ensure document exists
+    document_path = application["document_path"]
+    if not document_path:
+        cursor.close()
+        conn.close()
+        return "Document not generated yet.", 400
+
+    # Update status to Completed
+    cursor.execute(
+        "UPDATE application SET status='Completed' WHERE app_id=%s",
+        (app_id,)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Send document email
+    send_document_email(application["email"], document_path)
+    return render_template("application_form_completed.html")
 
 # Admin Analytics Route
 @app.route("/admin/analytics")
@@ -301,42 +400,6 @@ def toggle_service(id):
 
     flash("Service status updated!", "success")
     return redirect("/admin/settings")
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-def send_reset_otp(email, otp):
-    msg = EmailMessage()
-    msg["Subject"] = "Password Reset OTP"
-    msg["From"] = "hetvi5007@gmail.com"
-    msg["To"] = email
-    msg.set_content(f"Your OTP for password reset is: {otp}")
-
-    # Gmail SMTP
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login("hetvi5007@gmail.com", "cbedkaqjtytrihfw")
-        smtp.send_message(msg)
-
-def generate_receipt_pdf(application):
-    # HTML receipt rendering
-    rendered_html = render_template(
-        "pdf_receipt.html",
-        app_id=application["app_id"],
-        submission_date=application["submission_date"],
-        service_name=application["service_name"]
-    )
-    # Path to wkhtmltopdf
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-    pdf_path = f"static/receipts/{application['app_id']}_receipt.pdf"
-    pdfkit.from_string(rendered_html, pdf_path, configuration=config)
-    return pdf_path
 
 # ✅ Routes
 @app.route('/')
@@ -533,19 +596,11 @@ def reset_password():
     if request.method == "POST":
         password = request.form.get("password")
 
-        # ✅ Step 1: Validate input
         if not password or password.strip() == "":
             flash("Password cannot be empty!", "error")
             return redirect("/reset_password")
 
-        # ✅ Step 2: Hash password safely
-        try:
-            hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-        except Exception as e:
-            flash("Error while hashing password: " + str(e), "error")
-            return redirect("/reset_password")
-
-        # ✅ Step 3: Get email or phone from session
+        hashed_password = generate_password_hash(password)
         email = session.get("reset_email")
         phone = session.get("reset_phone")
 
@@ -553,33 +608,36 @@ def reset_password():
             flash("Session expired! Please request OTP again.", "error")
             return redirect("/forgot_password")
 
-        # ✅ Step 4: Update password in DB
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-
             if email:
                 cursor.execute("UPDATE users SET password=%s WHERE email=%s", (hashed_password, email))
-            else:
+            elif phone:
+                # Normalize phone (optional)
+                if phone.startswith("+91"):
+                    phone = phone[3:]
                 cursor.execute("UPDATE users SET password=%s WHERE phone=%s", (hashed_password, phone))
 
             conn.commit()
+            print("Updated rows:", cursor.rowcount)
             cursor.close()
             conn.close()
-
-            # ✅ Step 5: Clear OTP session data
             session.pop("reset_email", None)
             session.pop("reset_phone", None)
             session.pop("reset_otp", None)
 
-            flash("Password reset successfully! You can now log in.", "success")
+            if cursor.rowcount > 0:
+                flash("Password reset successfully! You can now log in.", "success")
+            else:
+                flash("No account found for that number or email!", "error")
             return redirect("/login")
 
         except Exception as e:
             flash("Database error: " + str(e), "error")
             return redirect("/reset_password")
-    return render_template("reset_password.html")
 
+    return render_template("reset_password.html")
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -916,7 +974,7 @@ def submit_application():
         to=f'whatsapp:+91{form_data["mobile"]}'
     )
     '''
-    
+
     conn.commit()
     cursor.close()
     conn.close()

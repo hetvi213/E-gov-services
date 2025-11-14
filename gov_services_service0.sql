@@ -18,32 +18,32 @@ USE `gov_services`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `service`
+-- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `service`;
+DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `service` (
-  `service_id` int(11) NOT NULL AUTO_INCREMENT,
-  `title` varchar(100) NOT NULL,
-  `short_desc` text,
-  `base_price` decimal(10,2) NOT NULL,
-  `documents` text,
-  `image` text,
+CREATE TABLE `users` (
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `phone` varchar(15) DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`service_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `service`
+-- Dumping data for table `users`
 --
 
-LOCK TABLES `service` WRITE;
-/*!40000 ALTER TABLE `service` DISABLE KEYS */;
-INSERT INTO `service` VALUES (1,'Pan Card','Application for new PAN card',300.00,'Aadhar Card','Pan Card.jpg','2025-08-19 07:06:48'),(2,'Aadhaar Card','Update Aadhaar details',350.00,NULL,'Aadhar Card 1.jpg','2025-08-19 07:06:48'),(3,'Ration Card','Apply for ration card',1000.00,NULL,NULL,'2025-08-19 07:06:48'),(4,'Senior Citizen Card','Apply for senior citizen card',500.00,NULL,NULL,'2025-08-19 07:06:48'),(5,'Voter ID Card','Apply for voter ID card',500.00,NULL,NULL,'2025-08-19 07:06:48'),(6,'PassPort','Apply for passport',2000.00,NULL,NULL,'2025-08-19 07:06:48'),(7,'Food Licence','Apply for food licence',1000.00,NULL,NULL,'2025-08-19 07:06:48'),(8,'Gumasta Licence','Apply for gumasta licence',1000.00,NULL,NULL,'2025-08-19 07:06:48'),(9,'GST Registration','Apply for GST registration',3500.00,NULL,NULL,'2025-08-19 07:06:48'),(10,'Udyham Registration','Apply for udyham registration',600.00,NULL,NULL,'2025-08-19 07:06:48'),(11,'Mariage Certificate','Apply for mariage certificate',4500.00,NULL,NULL,'2025-08-19 07:06:48'),(12,'Income Certificate','Apply for income certificate',2500.00,NULL,NULL,'2025-08-19 07:06:48'),(13,'Domicile Certificate','Apply for domicile certificate',3000.00,NULL,NULL,'2025-08-19 07:06:48'),(14,'Gazatte','Apply for gazatte',1500.00,NULL,NULL,'2025-08-19 07:06:48'),(15,'Advertisement','Apply for advertisement',1200.00,NULL,NULL,'2025-08-19 07:06:48'),(16,'PCC','Apply for PCC',550.00,NULL,NULL,'2025-08-19 07:06:48'),(17,'Partnership Deed','Apply for partnership deed',4500.00,NULL,NULL,'2025-08-19 07:06:48'),(18,'Name Change in Electricity bill','Apply for name change in electricity bill, gas bill',1000.00,NULL,NULL,'2025-08-19 07:06:48'),(19,'Property Tax','Apply for property tax',4500.00,NULL,NULL,'2025-08-19 07:06:48'),(20,'Leave Licence Agreement','Apply for leave licence agreement',3500.00,NULL,NULL,'2025-08-19 07:06:48');
-/*!40000 ALTER TABLE `service` ENABLE KEYS */;
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'Manak','manak@gmail.com','1234567890','scrypt:32768:8:1$Fizq2vrZ5xire9OI$0b0c4982db1650e134ed62f5a73c2f779ee3fb74c4229ad8e76e9dcdc640a16b95d326d3fdd10a7782cc612b7b0739ba9c40fd08b2553184cdaae6fe7f26e5e1','2025-11-06 11:29:55'),(2,'Admin','admin@gmail.com','123456789','scrypt:32768:8:1$slZ2DSvhDbGVMLt6$62d86dacb5613e69ddcc53a1ff782f85b75d3bf2ca9c2da24f417c37e59e28b54a7e01ec6b4872c3ed5b6c18d62c7a24fb2200a2e648f4e2bd5d228a9e5a80e2','2025-11-09 13:27:16'),(3,'Krishi','krishi@gmail.com','987654321','scrypt:32768:8:1$oxC5NGPDTMzQkp6k$ad442a5fb04fdc93b7ef2faa409a5b09c07ff83db74867d538840b881f92952ac869b49c8ba41fa13f23580405ef95f84d56600ad7bf70a059760b7334f91347','2025-11-09 14:20:36'),(4,'Mayank Saha','nobo33961@gmail.com','8169421990','scrypt:32768:8:1$GEkCFC3nvFEVzsJY$0846b1072b7d3c1de6fcf4b1cb1760ffc07a072d3dd68c6ec21d1a33dc58ef9725f3cfc5d444ba8d65133aa2a73bd0b42017865035fab55a077449f05f92d027','2025-11-10 13:52:18');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -55,4 +55,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-06 20:09:45
+-- Dump completed on 2025-11-10 21:21:28
