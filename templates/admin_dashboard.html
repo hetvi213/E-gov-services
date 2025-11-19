@@ -42,6 +42,8 @@
                             <span class="px-3 py-1 text-sm bg-red-500 text-white rounded-full">Verified</span>
                         {% elif row.status == "Received" %}
                             <span class="px-3 py-1 text-sm bg-yellow-500 text-white rounded-full">Received</span>
+                        {% elif row.status == "Rejected" %}
+                            <span class="px-3 py-1 text-sm bg-red-600 text-white rounded-full">Rejected</span>
                         {% endif %}
                     </td>
 
@@ -50,6 +52,10 @@
                     </td>
 
                     <td class="p-4 flex gap-2">
+                        <button onclick="openRejectModal('{{ row.app_id }}')" 
+                            class="px-3 py-1 bg-red-600 text-white text-sm rounded-full">
+                            Reject
+                        </button>
 
                         <a href="/update_status/{{ row.app_id }}/Received"
                            class="px-3 py-1 bg-yellow-400 text-white text-sm rounded-full">
@@ -81,5 +87,67 @@
     </div>
 
 </div>
+<!-- REJECT MODAL -->
+<!-- Reject Modal -->
+<div id="rejectModal"
+     class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-xl w-96">
+        <h2 class="text-xl font-semibold mb-3">Reject Application</h2>
+
+        <form id="rejectForm" method="POST">
+            <label class="block font-medium">Reason:</label>
+            <textarea name="reason" id="reject_reason"
+                      required class="w-full border p-2 rounded"></textarea>
+
+            <div class="flex justify-end mt-4 gap-3">
+                <button type="button" onclick="closeRejectModal()"
+                        class="px-4 py-1 bg-gray-300 rounded">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-1 bg-red-600 text-white rounded">
+                    Submit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openRejectModal(app_id) {
+    document.getElementById("rejectForm").action = `/reject_application/${app_id}`;
+    document.getElementById("rejectModal").classList.remove("hidden");
+}
+
+function closeRejectModal() {
+    document.getElementById("rejectModal").classList.add("hidden");
+}
+</script>
+
+<!-- Flash Popup -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div id="flashPopup"
+         class="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg transform transition-all duration-500 translate-y-20 opacity-0">
+
+      {% for category, message in messages %}
+        <p class="font-semibold">{{ message }}</p>
+      {% endfor %}
+    </div>
+
+    <script>
+      // Show popup
+      const popup = document.getElementById("flashPopup");
+      setTimeout(() => {
+        popup.classList.remove("translate-y-20", "opacity-0");
+      }, 150);
+
+      // Hide popup after 3 seconds
+      setTimeout(() => {
+        popup.classList.add("translate-y-20", "opacity-0");
+      }, 3500);
+    </script>
+  {% endif %}
+{% endwith %}
 
 {% endblock %}

@@ -45,7 +45,7 @@ mail = Mail(app)
 
 # ✅ Flask Twilio Connection
 ACCOUNT_SID = "AC5b329f9457b1a375174144626bd26a1d"
-AUTH_TOKEN = "6a10348ea972c8e8c64b7ba859e8ba02"
+AUTH_TOKEN = "80a246573a662e455866ebd95ec86fc3"
 TWILIO_PHONE = "+12173946575"  
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
@@ -127,6 +127,56 @@ def admin_dashboard():
     conn.close()
     return render_template("admin_dashboard.html", applications=applications)
 
+@app.route("/reject_application/<app_id>", methods=["POST"])
+def reject_application(app_id):
+    reason = request.form.get("reason")
+
+    print("Received reason:", reason)
+    print("App ID:", app_id)
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM application WHERE app_id=%s", (app_id,))
+    app_data = cursor.fetchone()
+
+    if not app_data:
+        flash("Application not found!", "error")
+        return redirect("/admin/dashboard")
+
+    cursor.execute("""
+        UPDATE application
+        SET status='Rejected', reject_reason=%s
+        WHERE app_id=%s
+    """, (reason, app_id))
+    conn.commit()
+
+    # Send email
+    try:
+        msg = Message(
+            subject="Application Rejected",
+            sender="hetvi5007@gmail.com",
+            recipients=[app_data["email"]]
+        )
+
+        msg.body = (
+            f"Hello {app_data['name']},\n\n"
+            f"Your application ID {app_id} for {app_data['service_name']} has been rejected.\n\n"
+            f"Reason:\n{reason}\n\n"
+            f"You may correct the issue and re-apply the application.\n\n"
+            "Regards,\nAdmin Team"
+        )
+
+        mail.send(msg)
+        print("Rejection email sent")
+
+    except Exception as e:
+        print("Email error:", e)
+
+    flash("Application rejected & email sent!", "success")
+    return redirect("/admin/dashboard")
+
+
 @app.route("/update_status/<app_id>/<new_status>")
 def update_status(app_id, new_status):
     conn = get_db_connection()
@@ -179,21 +229,29 @@ def admin_analytics():
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
 
-    # ✅ KPI Metrics
+    # ===== KPI METRICS =====
     cur.execute("SELECT COUNT(*) AS total FROM application")
     total = cur.fetchone()['total']
+
+    cur.execute("SELECT COUNT(*) AS rejected FROM application WHERE status='Rejected'")
+    rejected = cur.fetchone()['rejected']
+
     cur.execute("SELECT COUNT(*) AS received FROM application WHERE status='Received'")
     received = cur.fetchone()['received']
+
     cur.execute("SELECT COUNT(*) AS verified FROM application WHERE status='Verified'")
     verified = cur.fetchone()['verified']
+
     cur.execute("SELECT COUNT(*) AS processing FROM application WHERE status='Processing'")
     processing = cur.fetchone()['processing']
+
     cur.execute("SELECT COUNT(*) AS completed FROM application WHERE status='Completed'")
     completed = cur.fetchone()['completed']
+
     cur.execute("SELECT SUM(total_amount) AS revenue FROM application WHERE payment_status='Paid'")
     revenue = cur.fetchone()['revenue'] or 0
 
-    # ✅ Applications Trend by Date
+    # ===== APPLICATION TREND =====
     cur.execute("""
         SELECT DATE(created_at) AS date, COUNT(*) AS count
         FROM application
@@ -202,7 +260,7 @@ def admin_analytics():
     """)
     trend = cur.fetchall()
 
-    # ✅ Service Wise Count
+    # ===== SERVICE-WISE APPLICATION COUNT =====
     cur.execute("""
         SELECT service_name, COUNT(*) AS count
         FROM application
@@ -210,20 +268,157 @@ def admin_analytics():
     """)
     service_data = cur.fetchall()
 
+    # ===== SERVICE-WISE MONTHLY REVENUE =====
+    cur.execute("""
+        SELECT 
+            service_name,
+            DATE_FORMAT(created_at, '%b-%y') AS month,
+            SUM(total_amount) AS monthly_revenue
+        FROM application
+        WHERE payment_status='Paid'
+        GROUP BY service_name, DATE_FORMAT(created_at, '%b-%y')
+        ORDER BY month, service_name
+    """)
+    monthly_summary = cur.fetchall()
+
+    # ===== TOTAL REVENUE PER MONTH =====
+    cur.execute("""
+        SELECT 
+            DATE_FORMAT(created_at, '%b-%y') AS month,
+            SUM(total_amount) AS total_month_revenue
+        FROM application
+        WHERE payment_status='Paid'
+        GROUP BY DATE_FORMAT(created_at, '%b-%y')
+        ORDER BY month
+    """)
+    month_totals = cur.fetchall()
+
     cur.close()
     conn.close()
 
     return render_template(
         "analytics.html",
         total=total,
+        rejected=rejected,
         received=received,
         verified=verified,
         processing=processing,
         completed=completed,
         revenue=revenue,
         trend=trend,
-        service_data=service_data
+        service_data=service_data,
+        monthly_summary=monthly_summary,
+        month_totals=month_totals
     )
+
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
+from flask import send_file
+
+@app.route("/admin/analytics/pdf")
+def analytics_pdf():
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # --- Fetch Monthly Revenue Summary ---
+    cur.execute("""
+        SELECT DATE_FORMAT(created_at, '%b-%y') AS month,
+               service_name,
+               SUM(total_amount) AS monthly_revenue
+        FROM application
+        WHERE payment_status='Paid'
+        GROUP BY month, service_name
+        ORDER BY month DESC
+    """)
+    monthly_summary = cur.fetchall()
+
+    # --- Fetch Total Revenue Per Month ---
+    cur.execute("""
+        SELECT DATE_FORMAT(created_at, '%b-%y') AS month,
+               SUM(total_amount) AS total_month_revenue
+        FROM application
+        WHERE payment_status='Paid'
+        GROUP BY month
+        ORDER BY month DESC
+    """)
+    month_totals = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    # --- Create PDF in Memory ---
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=A4)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Title
+    elements.append(Paragraph("<b>Monthly Revenue Report (Service-wise)</b>", styles['Title']))
+    elements.append(Spacer(1, 12))
+
+    # ===== TABLE 1: Monthly Revenue Summary (Service-wise) =====
+    data1 = [["Month", "Service Name", "Revenue (Rs.)"]]
+
+    for row in monthly_summary:
+        data1.append([
+            row['month'],
+            row['service_name'],
+            f"Rs. {row['monthly_revenue']}"
+        ])
+
+    table1 = Table(data1, colWidths=[100, 200, 100])
+    table1.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN', (2,1), (2,-1), 'RIGHT')
+    ]))
+
+    elements.append(table1)
+    elements.append(Spacer(1, 20))
+
+    # ===== TABLE 2: Total Revenue Per Month =====
+    elements.append(Paragraph("<b>Total Revenue Per Month</b>", styles['Heading2']))
+    elements.append(Spacer(1, 8))
+
+    data2 = [["Month", "Total Revenue (Rs.)"]]
+
+    for row in month_totals:
+        data2.append([
+            row['month'],
+            f"Rs. {row['total_month_revenue']}"
+        ])
+
+    table2 = Table(data2, colWidths=[150, 150])
+    table2.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN', (1,1), (1,-1), 'RIGHT')
+    ]))
+
+    elements.append(table2)
+    pdf.title = f"Revenue_Report.pdf"
+
+    # Build PDF
+    pdf.build(elements)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="Analytics_Report.pdf",
+        mimetype="application/pdf"
+    )
+
+
 
 @app.route("/admin/settings", methods=["GET", "POST"])
 def admin_settings():
@@ -404,7 +599,7 @@ def generate_receipt_pdf(application):
     return pdf_path
 
 # Static tutorial data (no database)
-tutorial_details = {
+guide_details = {
     "how-to-register-service": {
         "title": "How to Create an Account",
         "steps": [
@@ -596,28 +791,16 @@ def faq():
 def contact():
     return render_template('contact.html')
 
-@app.route("/tutorials")
+@app.route("/guides")
 def tutorials():
-    return render_template("tutorials.html")
+    return render_template("guide.html")
 
 @app.route("/tutorials/<slug>")
 def tutorial_detail(slug):
-    tutorial = tutorial_details.get(slug)
-    if not tutorial:
-        return "Tutorial not found", 404
-    return render_template("tutorial_detail.html", tutorial=tutorial)
-
-# USER guides list
-@app.route("/guides/user")
-def user_guides_page():
-    return render_template("guides.html", guides=user_guides)
-
-@app.route("/guides/user/<slug>")
-def user_guide_detail(slug):
-    guide = user_guides.get(slug)
+    guide = guide_details.get(slug)
     if not guide:
         return "Guide not found", 404
-    return render_template("guide_detail.html", guide=guide)
+    return render_template("guides_detail.html", tutorial=guide)
 
 # ADMIN guides list
 @app.route("/guides/admin")

@@ -14,14 +14,19 @@
             <p class="text-3xl font-bold">{{ total }}</p>
         </div>
 
+        <div class="bg-red-50 p-4 rounded-xl shadow">
+            <h3 class="text-gray-500 text-sm">Rejected</h3>
+            <p class="text-3xl font-bold text-red-600">{{ rejected }}</p>
+        </div>
+
         <div class="bg-yellow-50 p-4 rounded-xl shadow">
             <h3 class="text-gray-500 text-sm">Received</h3>
             <p class="text-3xl font-bold text-yellow-600">{{ received }}</p>
         </div>
 
-        <div class="bg-yellow-50 p-4 rounded-xl shadow">
+        <div class="bg-pink-50 p-4 rounded-xl shadow">
             <h3 class="text-gray-500 text-sm">Verified</h3>
-            <p class="text-3xl font-bold text-yellow-600">{{ verified }}</p>
+            <p class="text-3xl font-bold text-pink-600">{{ verified }}</p>
         </div>
 
         <div class="bg-blue-50 p-4 rounded-xl shadow">
@@ -41,7 +46,9 @@
     </div>
 
     <!-- ===== Charts Section ===== -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    
+    <!-- ===== Charts Section ===== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
 
         <!-- Trend Chart -->
         <div class="bg-white p-6 rounded-xl shadow">
@@ -55,6 +62,70 @@
             <canvas id="serviceChart"></canvas>
         </div>
 
+    </div>
+
+    <!-- ========================================= -->
+    <!-- MONTHLY REVENUE SUMMARY TABLE GOES HERE   -->
+    <!-- ========================================= -->
+
+    <div class="bg-white p-6 mt-10 rounded-xl shadow">
+        <h3 class="text-xl font-semibold mb-6">Monthly Revenue Summary (Service-wise)</h3>
+
+        <div class="overflow-x-auto">
+            <table class="w-full border border-gray-300 rounded-lg">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2 border">Month</th>
+                        <th class="px-4 py-2 border">Service Name</th>
+                        <th class="px-4 py-2 border">Monthly Revenue (₹)</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in monthly_summary %}
+                    <tr>
+                        <td class="px-4 py-2 border">{{ row.month }}</td>
+                        <td class="px-4 py-2 border">{{ row.service_name }}</td>
+                        <td class="px-4 py-2 border font-semibold text-green-600">
+                            ₹ {{ row.monthly_revenue }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h4 class="text-lg font-bold mt-8 mb-3">Total Revenue Per Month</h4>
+
+        <div class="overflow-x-auto">
+            <table class="w-full border border-gray-300 rounded-lg">
+                <thead class="bg-indigo-50">
+                    <tr>
+                        <th class="px-4 py-2 border">Month</th>
+                        <th class="px-4 py-2 border">Total Revenue (₹)</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for t in month_totals %}
+                    <tr>
+                        <td class="px-4 py-2 border">{{ t.month }}</td>
+                        <td class="px-4 py-2 border font-bold text-indigo-700">
+                            ₹ {{ t.total_month_revenue }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="flex justify-end mb-4">
+    <div class="w-full flex justify-center mt-6">
+        <a href="/admin/analytics/pdf" 
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+            Download Analytics PDF
+        </a>
+    </div>
+</div>
     </div>
 </div>
 
