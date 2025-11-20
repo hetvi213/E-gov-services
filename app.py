@@ -10,6 +10,10 @@ from sqlalchemy.dialects.mysql import JSON
 from email.message import EmailMessage
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 from flask_mail import Mail, Message
 from twilio.rest import Client
 from email.mime.multipart import MIMEMultipart
@@ -311,13 +315,6 @@ def admin_analytics():
         month_totals=month_totals
     )
 
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
-from flask import send_file
-
 @app.route("/admin/analytics/pdf")
 def analytics_pdf():
 
@@ -417,8 +414,6 @@ def analytics_pdf():
         download_name="Analytics_Report.pdf",
         mimetype="application/pdf"
     )
-
-
 
 @app.route("/admin/settings", methods=["GET", "POST"])
 def admin_settings():
@@ -598,7 +593,52 @@ def generate_receipt_pdf(application):
     pdfkit.from_string(rendered_html, pdf_path, configuration=config)
     return pdf_path
 
-# Static tutorial data (no database)
+def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
+    sender_email = "hetvi5007@gmail.com"
+    sender_password = "cbedkaqjtytrihfw"  # NOT your Gmail password!
+
+    subject = f"Receipt for Your Application ({app_id})"
+    body = f"""
+    Dear User,
+
+    Thank you for submitting your application for {service_name}.
+    Please find attached your official receipt.
+
+    Application ID: {app_id}
+    Status: Application
+    Service: {service_name}
+
+    Regards,
+    Krishi E-Government Services
+    """
+
+    # Create MIME message
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Attach PDF
+    with open(pdf_path, "rb") as f:
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(f.read())
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(pdf_path)}')
+    msg.attach(part)
+
+    # Send email via SMTP (Gmail)
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"✅ Email sent successfully to {receiver_email}")
+    except Exception as e:
+        print(f"❌ Error sending email: {e}")
+
+# USER GUIDES
 guide_details = {
     "how-to-register-service": {
         "title": "How to Create an Account",
@@ -648,64 +688,7 @@ guide_details = {
     },
 }
 
-# Step-by-step guide data
-# ---------- USER GUIDES ----------
-user_guides = {
-    "how-to-register-service": {
-        "title": "How to Register for a Service",
-        "steps": [
-            "Go to the homepage and click Register.",
-            "Enter your details and create an account.",
-            "Log in to your dashboard.",
-            "Navigate to the Services page and choose a service."
-        ]
-    },
-    "how-to-apply-for-service": {
-        "title": "How to Apply for a Service",
-        "steps": [
-            "Log in to your account.",
-            "Open the Services page.",
-            "Select any service you want.",
-            "Fill out the form and upload documents.",
-            "Submit the application for processing."
-        ]
-    },
-    "how-to-track-application": {
-        "title": "How to Track Your Application",
-        "steps": [
-            "Login to your dashboard.",
-            "Go to My Applications.",
-            "Click on any service to check its status."
-        ]
-    },
-    "how-to-download-documents": {
-        "title": "How to Download Documents",
-        "steps": [
-            "Open My Applications.",
-            "Click Download next to the completed service.",
-            "The document will be downloaded to your device."
-        ]
-    },
-    "how-to-reset-password": {
-        "title": "How to Reset Your Password",
-        "steps": [
-            "Go to Login page.",
-            "Click Forgot Password.",
-            "Verify using OTP.",
-            "Create new password and login again."
-        ]
-    },
-    "contact-support": {
-        "title": "How to Contact Support",
-        "steps": [
-            "Go to Contact page.",
-            "Fill the support form with message.",
-            "Submit and wait for email reply within 24–48 hours."
-        ]
-    }
-}
-
-# ---------- ADMIN GUIDES ----------
+# ADMIN GUIDES
 admin_guides = {
     "admin-how-to-login": {
         "title": "How to Access Admin Panel",
@@ -752,7 +735,6 @@ admin_guides = {
     }
 }
 
-
 # ✅ Routes
 @app.route('/')
 def home():
@@ -791,6 +773,18 @@ def faq():
 def contact():
     return render_template('contact.html')
 
+@app.route('/about')
+@login_required
+def about():
+    # Example: decide whether to show the login button in header
+    # If user is logged in you might set session['user_id'] somewhere else after login
+    show_login = 'user_id' not in session
+    return render_template(
+        'about.html',
+        show_login=show_login,
+        page_title="About Us - Krishi E-Government Services"
+    )
+
 @app.route("/guides")
 def tutorials():
     return render_template("guide.html")
@@ -802,7 +796,6 @@ def tutorial_detail(slug):
         return "Guide not found", 404
     return render_template("guides_detail.html", tutorial=guide)
 
-# ADMIN guides list
 @app.route("/guides/admin")
 def admin_guides_page():
     return render_template("admin_guides.html", guides=admin_guides)
@@ -830,30 +823,17 @@ def chatbot_ask():
         "forget password":"To reset the password go the Login page and click on 'forget password' button",
         "forget the password":"To reset the password go the Login page and click on 'forget password' button",
         "documents": "Upload clear documents in PDF/JPG only. Max size 2MB.",
-        "track": "Go to My Applications to track your status.",
+        "track": "Go to My Applications to track your status or manually track through Track page.",
         "payment": "Payments are securely processed using Razorpay.",
         "hello": "Hello! How can I help you today?",
         "hi": "Hi! Ask me anything.",
     }
-
     for key in responses:
         if key in question:
             return jsonify({"answer": responses[key]})
 
     # Default fallback
     return jsonify({"answer": "I’m not sure about that. Please rephrase your question."})
-
-@app.route('/about')
-@login_required
-def about():
-    # Example: decide whether to show the login button in header
-    # If user is logged in you might set session['user_id'] somewhere else after login
-    show_login = 'user_id' not in session
-    return render_template(
-        'about.html',
-        show_login=show_login,
-        page_title="About Us - Krishi E-Government Services"
-    )
 
 # ✅ Route: register_user
 @app.route('/register', methods=['GET', 'POST'])
@@ -1493,52 +1473,6 @@ def send_whatsapp_receipt(application):
         body=message_body,
         to=f"whatsapp:+91{application['mobile']}"
     )
-
-
-def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
-    sender_email = "hetvi5007@gmail.com"
-    sender_password = "cbedkaqjtytrihfw"  # NOT your Gmail password!
-
-    subject = f"Receipt for Your Application ({app_id})"
-    body = f"""
-    Dear User,
-
-    Thank you for submitting your application for {service_name}.
-    Please find attached your official receipt.
-
-    Application ID: {app_id}
-    Status: Application
-    Service: {service_name}
-
-    Regards,
-    Krishi E-Government Services
-    """
-
-    # Create MIME message
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Attach PDF
-    with open(pdf_path, "rb") as f:
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(f.read())
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(pdf_path)}')
-    msg.attach(part)
-
-    # Send email via SMTP (Gmail)
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
-        print(f"✅ Email sent successfully to {receiver_email}")
-    except Exception as e:
-        print(f"❌ Error sending email: {e}")
 
 @app.route('/payment_success', methods=['POST'])
 def payment_success():

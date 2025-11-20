@@ -46,15 +46,16 @@
         <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
           Upload Required Documents
         </h4>
+      {% if service.documents and service.documents|length > 0 %}
         <div class="space-y-3">
           {% for doc in service.documents %}
-    <div class="p-4 border rounded-lg dark:border-gray-600">
+        <div class="p-4 border rounded-lg dark:border-gray-600">
 
       <!-- Checkbox -->
       <label class="flex items-center gap-2 mb-2">
         <input type="checkbox" class="doc-check" data-doc="{{ doc }}">
         <span class="text-gray-800 dark:text-gray-200 font-medium">
-          {{ doc }}
+          {{ doc }} (Max file size 2MB)
         </span>
       </label>
       <div class="pt-3">
@@ -68,6 +69,11 @@
     </div>
     {% endfor %}
         </div>
+      {% else %}
+        <p class="text-gray-700 dark:text-gray-300 text-md font-medium">
+            No documents required for this service.
+        </p>
+      {% endif %}
       </div>
 
       <!-- Payment Options -->
