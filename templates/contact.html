@@ -66,6 +66,23 @@
     contactForm.scrollIntoView({ behavior: 'smooth' });
   });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <script>
+      {% for category, message in messages %}
+        Swal.fire({
+          title: message,
+          icon: '{{ category }}' === 'success' ? 'success' : 'error',
+          confirmButtonText: 'OK',
+          timer: 2200,
+        });
+      {% endfor %}
+    </script>
+  {% endif %}
+{% endwith %}
+
 {% endblock %}
 
 {% block footer %}

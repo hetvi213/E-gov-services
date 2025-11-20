@@ -1,139 +1,168 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Krishi E-Government Services</title>
-<link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
 <script>
-        tailwind.config = {
-          darkMode: "class",
-          theme: {
-            extend: {
-              colors: {
-                "primary": "#16a34a", // Changed to a shade of green
-                "background-light": "#f0fdf4", // Lighter green for background
-                "background-dark": "#052e16", // Dark green for dark mode background
-              },
-              fontFamily: {
-                "display": ["Public Sans"]
-              },
-              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-            },
-          },
-        }
-    </script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#16a34a",
+        "background-light": "#f0fdf4",
+        "background-dark": "#052e16",
+      },
+      fontFamily: { display: ["Public Sans"] },
+    },
+  },
+}
+</script>
+
 <style>
-        body {
-          font-family: 'Public Sans', sans-serif;
-        }
-    </style>
+body { font-family: 'Public Sans', sans-serif; }
+</style>
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+
+<body class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200">
+
 <div class="flex flex-col min-h-screen">
+
+<!-- HEADER -->
 <header class="w-full bg-white dark:bg-[#042110] shadow-sm sticky top-0 z-50">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-  <div class="flex items-center justify-between h-20">
-  <div class="flex items-center">
-  <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-  <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-  </svg>
-  <span class="ml-3 text-2xl font-bold text-gray-900 dark:text-white">Krishi E-Government Services</span>
-  </div>
-  <nav class="hidden md:flex items-center space-x-8">
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/">Home</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">Services</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">About</a>
-  <a class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors duration-200" href="/login">Contact</a>
-  <a class="px-6 py-2 bg-primary text-white rounded-full font-semibold hover:bg-primary/90 transition-colors duration-200" href="/login">Login/Register</a>
-  </nav>
-  <button class="md:hidden text-gray-600 dark:text-gray-300">
-  <span class="material-symbols-outlined">menu</span>
-  </button>
-  </div>
+    <div class="flex items-center justify-between h-20">
+      <div class="flex items-center">
+        <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </svg>
+        <span class="ml-3 text-2xl font-bold">Krishi E-Government Services</span>
+      </div>
+
+      <nav class="hidden md:flex items-center space-x-8">
+        <a class="hover:text-primary transition" href="/">Home</a>
+        <a class="hover:text-primary transition" href="/login">Services</a>
+        <a class="hover:text-primary transition" href="/login">About</a>
+        <a class="hover:text-primary transition" href="/login">Contact</a>
+
+        <a href="/login" class="px-6 py-2 bg-primary text-white rounded-full font-semibold hover:bg-primary/90">Login/Register</a>
+      </nav>
+      <button class="md:hidden text-gray-600 dark:text-gray-300"><span class="material-symbols-outlined">menu</span></button>
+    </div>
   </div>
 </header>
-<main class="flex-grow">
-<section 
-    class="relative  py-50 sm:py-60 bg-cover bg-center bg-no-repeat"
-    style="background-color: #000000;"
->
-    <!-- Dark overlay for readability -->
-    <div class="absolute inset-0 bg-black/40"></div>
 
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div class="text-center">
-            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-100 tracking-tight">
-                Welcome to <span class="text-primary">Krishi E-Government Services</span>
-            </h1>
+<!-- 🔥 HERO SECTION WITH AUTO SLIDESHOW BACKGROUND -->
+<section class="relative h-[450px] md:h-[550px] overflow-hidden">
 
-            <p class="mt-4 text-lg sm:text-xl text-gray-200 max-w-2xl mx-auto">
-                Your one-stop portal for accessing various government services efficiently and transparently.
-            </p>
+    <!-- Slideshow Background -->
+    <div id="heroSlides" class="absolute inset-0 w-full h-full">
+        <img src="/static/images/Aadhar.jpg" class="slide absolute inset-0 w-full h-full object-contain opacity-100 transition-opacity duration-500 blur-lg scale-110"/>
+        <img src="/static/images/Food.jpg" class="slide absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-500 blur-lg scale-110"/>
+        <img src="/static/images/Ad.jpg" class="slide absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-500 blur-lg scale-110"/>
+    </div>
 
-            <div class="mt-8 flex justify-center gap-x-4">
-                <a class="inline-block px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90 transition-transform transform hover:-translate-y-1" href="/login">
-                    Explore Services
-                </a>
-                <a class="inline-block px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-full font-semibold shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-transform transform hover:-translate-y-1" href="/about">
-                    Learn More
-                </a>
-            </div>
+    <!-- Dark Overlay -->
+    <div class="absolute inset-0 bg-black/50"></div>
+
+    <!-- Text Content -->
+    <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white drop-shadow-lg">
+            Welcome to <span class="text-primary">Krishi E-Government Services</span>
+        </h1>
+
+        <p class="mt-4 text-lg sm:text-xl text-gray-100 max-w-2xl">
+            Your one-stop portal for accessing various government services efficiently and transparently.
+        </p>
+
+        <div class="mt-8 flex gap-4">
+            <a href="/login" class="px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90">Explore Services</a>
+            <a href="/about" class="px-8 py-3 bg-white/80 text-gray-800 rounded-full font-semibold hover:bg-white">Learn More</a>
         </div>
     </div>
 </section>
 
+
+<script>
+// SIMPLE BACKGROUND FADE SLIDESHOW
+let slideIndex = 0;
+const slides = document.querySelectorAll("#heroSlides .slide");
+
+function showSlides() {
+    slides.forEach((slide, i) => {
+        slide.style.opacity = (i === slideIndex) ? "1" : "0";
+    });
+
+    slideIndex = (slideIndex + 1) % slides.length;
+}
+
+setInterval(showSlides, 4000);
+</script>
+
+
+
+<!-- SERVICES SECTION -->
 <section class="py-16 sm:py-24">
 <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+
 <div class="text-center mb-12">
-<h2 class="text-3xl font-bold text-gray-900 dark:text-white">Our Services</h2>
-<p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Find the service you need.</p>
+  <h2 class="text-3xl font-bold">Our Services</h2>
+  <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Find the service you need.</p>
 </div>
+
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-<div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-<div class="p-8">
-<div class="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 dark:bg-primary/20 mb-6">
-<span class="material-symbols-outlined text-primary text-3xl">badge</span>
-</div>
-<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">PAN Card Services</h3>
-<p class="text-gray-600 dark:text-gray-400 mb-6">Apply for a new PAN card, make corrections, or track your application status.</p>
-<a class="font-semibold text-primary hover:underline" href="#">Apply Now <span aria-hidden="true">→</span></a>
-</div>
-</div>
-<div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-<div class="p-8">
-<div class="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 dark:bg-primary/20 mb-6">
-<span class="material-symbols-outlined text-primary text-3xl">fingerprint</span>
-</div>
-<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Aadhaar Services</h3>
-<p class="text-gray-600 dark:text-gray-400 mb-6">Update your Aadhaar details, download e-Aadhaar, or check your Aadhaar status.</p>
-<a class="font-semibold text-primary hover:underline" href="/login">Get Started <span aria-hidden="true">→</span></a>
-</div>
-</div>
-<div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-<div class="p-8">
-<div class="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 dark:bg-primary/20 mb-6">
-<span class="material-symbols-outlined text-primary text-3xl">agriculture</span>
-</div>
-<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Voter ID Card</h3>
-<p class="text-gray-600 dark:text-gray-400 mb-6">Register for a Voter ID card to avail various benefits.</p>
-<a class="font-semibold text-primary hover:underline" href="/login">Register Now <span aria-hidden="true">→</span></a>
-</div>
-</div>
+
+  <!-- CARD 1 -->
+  <div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 p-8">
+    <div class="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+      <span class="material-symbols-outlined text-primary text-3xl">badge</span>
+    </div>
+    <h3 class="text-xl font-bold mb-2">PAN Card Services</h3>
+    <p class="text-gray-600 dark:text-gray-400 mb-6">Apply for a new PAN card or update existing details.</p>
+    <a class="text-primary font-semibold hover:underline" href="#">Apply Now →</a>
+  </div>
+
+  <!-- CARD 2 -->
+  <div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 p-8">
+    <div class="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+      <span class="material-symbols-outlined text-primary text-3xl">fingerprint</span>
+    </div>
+    <h3 class="text-xl font-bold mb-2">Aadhaar Services</h3>
+    <p class="text-gray-600 dark:text-gray-400 mb-6">Update Aadhaar details or download e-Aadhaar.</p>
+    <a class="text-primary font-semibold hover:underline" href="/login">Get Started →</a>
+  </div>
+
+  <!-- CARD 3 -->
+  <div class="bg-white dark:bg-[#063b20] rounded-xl shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 p-8">
+    <div class="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+      <span class="material-symbols-outlined text-primary text-3xl">agriculture</span>
+    </div>
+    <h3 class="text-xl font-bold mb-2">Voter ID Card</h3>
+    <p class="text-gray-600 dark:text-gray-400 mb-6">Register or update Voter ID card details.</p>
+    <a class="text-primary font-semibold hover:underline" href="/login">Register Now →</a>
+  </div>
+
 </div>
 </div>
 </section>
-</main>
+
+
+<!-- FOOTER -->
 <footer class="bg-white dark:bg-[#042110] mt-auto">
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-<div class="text-center text-gray-600 dark:text-gray-400">
-<p>© 2025 Krishi E-Government Services. All Rights Reserved.</p>
-<p class="mt-2 text-sm">Designed to serve the citizens of our nation.</p>
-</div>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+  <p class="text-gray-600 dark:text-gray-400">© 2025 Krishi E-Government Services. All Rights Reserved.</p>
+  <p class="mt-2 text-sm">Designed to serve the citizens of our nation.</p>
 </div>
 </footer>
-</div>
 
-</body></html>
+</div>
+</body>
+</html>

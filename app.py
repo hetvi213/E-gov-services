@@ -49,7 +49,7 @@ mail = Mail(app)
 
 # ✅ Flask Twilio Connection
 ACCOUNT_SID = "AC5b329f9457b1a375174144626bd26a1d"
-AUTH_TOKEN = "80a246573a662e455866ebd95ec86fc3"
+AUTH_TOKEN = "84606e7abd243d1fda07fb5859e91733"
 TWILIO_PHONE = "+12173946575"  
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
@@ -63,8 +63,8 @@ razorpay_client = razorpay.Client(auth=("rzp_test_Rcq1OkhS35AWp9", "ldq5ru7Am3Q1
 def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
-        user="root",        # replace with your MySQL username
-        password="",  # replace with your MySQL password
+        user="root", 
+        password="",
         database="gov_services"
     )
 
@@ -87,8 +87,6 @@ except json.JSONDecodeError as e:
     exit()
 print("✅ JSON loaded successfully.")
 
-
-
 # ✅ Define models
 class Service(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -110,14 +108,6 @@ class Application(db.Model):
     #razorpay_order_id = db.Column(db.String(200), nullable=True)
     #razorpay_payment_id = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class ApplicationItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False)
-    service_id = db.Column(db.Integer, db.ForeignKey('service.id'))
-    selected_documents = db.Column(JSON)  # list of selected doc names
-    item_amount = db.Column(db.Numeric(10,2))
-
 
 # Admin Dashboard Route
 @app.route("/admin/dashboard")
@@ -149,10 +139,8 @@ def reject_application(app_id):
         return redirect("/admin/dashboard")
 
     cursor.execute("""
-        UPDATE application
-        SET status='Rejected', reject_reason=%s
-        WHERE app_id=%s
-    """, (reason, app_id))
+        UPDATE application SET status='Rejected', reject_reason=%s WHERE app_id=%s """, (reason, app_id)
+    )
     conn.commit()
 
     # Send email
@@ -170,10 +158,8 @@ def reject_application(app_id):
             f"You may correct the issue and re-apply the application.\n\n"
             "Regards,\nAdmin Team"
         )
-
         mail.send(msg)
         print("Rejection email sent")
-
     except Exception as e:
         print("Email error:", e)
 
@@ -186,8 +172,7 @@ def update_status(app_id, new_status):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "UPDATE application SET status=%s WHERE app_id=%s",
-        (new_status, app_id)
+        "UPDATE application SET status=%s WHERE app_id=%s", (new_status, app_id)
     )
     conn.commit()
     conn.close()
@@ -216,8 +201,7 @@ def complete_application(app_id):
 
     # Update status to Completed
     cursor.execute(
-        "UPDATE application SET status='Completed' WHERE app_id=%s",
-        (app_id,)
+        "UPDATE application SET status='Completed' WHERE app_id=%s", (app_id,)
     )
     conn.commit()
     cursor.close()
@@ -257,43 +241,30 @@ def admin_analytics():
 
     # ===== APPLICATION TREND =====
     cur.execute("""
-        SELECT DATE(created_at) AS date, COUNT(*) AS count
-        FROM application
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
+        SELECT DATE(created_at) AS date, COUNT(*) AS count FROM application
+        GROUP BY DATE(created_at) ORDER BY DATE(created_at)
     """)
     trend = cur.fetchall()
 
     # ===== SERVICE-WISE APPLICATION COUNT =====
     cur.execute("""
-        SELECT service_name, COUNT(*) AS count
-        FROM application
-        GROUP BY service_name
+        SELECT service_name, COUNT(*) AS count FROM application GROUP BY service_name
     """)
     service_data = cur.fetchall()
 
     # ===== SERVICE-WISE MONTHLY REVENUE =====
     cur.execute("""
-        SELECT 
-            service_name,
-            DATE_FORMAT(created_at, '%b-%y') AS month,
-            SUM(total_amount) AS monthly_revenue
-        FROM application
-        WHERE payment_status='Paid'
-        GROUP BY service_name, DATE_FORMAT(created_at, '%b-%y')
-        ORDER BY month, service_name
+        SELECT service_name, DATE_FORMAT(created_at, '%b-%y') AS month, SUM(total_amount) AS monthly_revenue
+        FROM application WHERE payment_status='Paid'
+        GROUP BY service_name, DATE_FORMAT(created_at, '%b-%y') ORDER BY month, service_name
     """)
     monthly_summary = cur.fetchall()
 
     # ===== TOTAL REVENUE PER MONTH =====
     cur.execute("""
-        SELECT 
-            DATE_FORMAT(created_at, '%b-%y') AS month,
-            SUM(total_amount) AS total_month_revenue
-        FROM application
-        WHERE payment_status='Paid'
-        GROUP BY DATE_FORMAT(created_at, '%b-%y')
-        ORDER BY month
+        SELECT DATE_FORMAT(created_at, '%b-%y') AS month, SUM(total_amount) AS total_month_revenue
+        FROM application WHERE payment_status='Paid'
+        GROUP BY DATE_FORMAT(created_at, '%b-%y') ORDER BY month
     """)
     month_totals = cur.fetchall()
 
@@ -323,24 +294,15 @@ def analytics_pdf():
 
     # --- Fetch Monthly Revenue Summary ---
     cur.execute("""
-        SELECT DATE_FORMAT(created_at, '%b-%y') AS month,
-               service_name,
-               SUM(total_amount) AS monthly_revenue
-        FROM application
-        WHERE payment_status='Paid'
-        GROUP BY month, service_name
-        ORDER BY month DESC
+        SELECT DATE_FORMAT(created_at, '%b-%y') AS month, service_name, SUM(total_amount) AS monthly_revenue
+        FROM application WHERE payment_status='Paid' GROUP BY month, service_name ORDER BY month DESC
     """)
     monthly_summary = cur.fetchall()
 
     # --- Fetch Total Revenue Per Month ---
     cur.execute("""
-        SELECT DATE_FORMAT(created_at, '%b-%y') AS month,
-               SUM(total_amount) AS total_month_revenue
-        FROM application
-        WHERE payment_status='Paid'
-        GROUP BY month
-        ORDER BY month DESC
+        SELECT DATE_FORMAT(created_at, '%b-%y') AS month, SUM(total_amount) AS total_month_revenue
+        FROM application WHERE payment_status='Paid' GROUP BY month ORDER BY month DESC
     """)
     month_totals = cur.fetchall()
 
@@ -521,6 +483,8 @@ def toggle_service(id):
     flash("Service status updated!", "success")
     return redirect("/admin/settings")
 
+# ✅ Session timeout: auto logout after 30 minutes
+app.permanent_session_lifetime = timedelta(minutes=30)
 
 # Functions
 def allowed_file(filename):
@@ -611,7 +575,6 @@ def send_receipt_email(receiver_email, app_id, pdf_path, service_name):
     Regards,
     Krishi E-Government Services
     """
-
     # Create MIME message
     msg = MIMEMultipart()
     msg['From'] = sender_email
@@ -773,6 +736,42 @@ def faq():
 def contact():
     return render_template('contact.html')
 
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    try:
+        name = request.form['name']
+        email = request.form['email']
+        subject = request.form['subject']
+        message = request.form['message']
+
+        admin_email = "hetvi5007@gmail.com"  # admin email
+
+        # Construct email content
+        msg = MIMEText(f"""You have received a query from the Contact Form:
+
+Name: {name} \n
+Email: {email} \n
+Subject: {subject} \n
+Message: {message} \n
+        """)
+
+        msg['Subject'] = f"Contact Form query : {subject}"
+        msg['From'] = email
+        msg['To'] = admin_email
+
+        # Send using SMTP (Gmail example)
+        smtp_server = smtplib.SMTP('smtp.gmail.com', 587)
+        smtp_server.starttls()
+        smtp_server.login("hetvi5007@gmail.com", "jyoibgqmyckxewuz")
+        smtp_server.sendmail(email, admin_email, msg.as_string())
+        smtp_server.quit()
+        flash("Your message has been sent successfully!", "success")
+    except Exception as e:
+        print("Email error:", e)
+        flash("Failed to send your message. Please try again.", "error")
+
+    return redirect(url_for('contact'))
+
 @app.route('/about')
 @login_required
 def about():
@@ -864,9 +863,6 @@ def register_user():
         flash(f"An error occurred: {e}", "Enter unique e-mail id")
         return redirect(url_for('register'))
 
-# ✅ Session timeout: auto logout after 30 minutes
-app.permanent_session_lifetime = timedelta(minutes=30)
-
 # ✅ Route: login_user
 @app.route('/login', methods=['GET', 'POST'])
 def login_user():
@@ -932,11 +928,10 @@ def forgot_password():
                 flash("OTP sent to your email.", "info")
             except Exception as e:
                 flash("Failed to send OTP via email: " + str(e), "error")
-
         else:
             # ----- SMS OTP -----
             if not user_input.startswith("+"):
-                user_input = "+91" + user_input  # Default India code
+                user_input = "+91" + user_input 
             session["reset_phone"] = user_input
             session.pop("reset_email", None)
             try:
@@ -948,11 +943,9 @@ def forgot_password():
                 flash("OTP sent via SMS.", "info")
             except Exception as e:
                 flash("Failed to send OTP via SMS: " + str(e), "error")
-
         return redirect("/verify_otp")
 
     return render_template("forgot_password.html")
-
 
 @app.route("/verify_otp", methods=["GET", "POST"])
 def verify_otp():
@@ -1023,20 +1016,9 @@ def reset_password():
 
     return render_template("reset_password.html")
 
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    # You can handle form data here (store in DB or send email)
-    name = request.form['name']
-    email = request.form['email']
-    subject = request.form['subject']
-    message = request.form['message']
-    # Example: flash message or redirect
-    flash("Your message has been sent successfully!", "success")
-    return redirect(url_for('home'))
-
 # ✅ Route to display all services
 @app.route('/services')
-#@login_required
+@login_required
 def services():
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
@@ -1048,7 +1030,6 @@ def services():
         return render_template('services.html', services=[])
     try:
         cursor = conn.cursor(dictionary=True)
-        
         cursor.execute("SELECT service_id, title, short_desc, base_price, documents, image FROM service")
         services = cursor.fetchall()
         if not services:
@@ -1057,14 +1038,12 @@ def services():
             services = []
         return render_template('services.html', services=services)
     except Error as err:
-        print(f"❌ MySQL error: {err}")
         flash("An error occurred while fetching services.", "danger")
         return render_template('services.html', services=[])
     finally:
         if conn.is_connected():
             cursor.close()
             conn.close()
-            print("🔒 Database connection closed.")
 
 @app.route("/service/<int:id>")
 def service_detail(id):
@@ -1081,7 +1060,6 @@ def service_detail(id):
             service["documents"] = [doc.strip() for doc in service["documents"].split(",") if doc.strip()]
         else:
             service["documents"] = []
-
         return render_template("service_detail.html", service=service)
     
     except mysql.connector.Error as err:
@@ -1118,7 +1096,6 @@ def application_form(id):
 
     # --------------- POST HANDLING ----------------
     if request.method == "POST":
-
         MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
         uploaded_files = {}
 
@@ -1136,7 +1113,6 @@ def application_form(id):
 
             # CASE A → Checkbox checked → file must be uploaded
             if checkbox_val == "on":
-
                 if not file or file.filename == "":
                     flash(f"Please upload required document: {doc_name}", "danger")
                     return redirect(request.url)
@@ -1145,18 +1121,15 @@ def application_form(id):
                 if len(file_bytes) > MAX_FILE_SIZE:
                     flash(f"{doc_name} must be less than 2MB", "danger")
                     return redirect(request.url)
-
                 file.seek(0)
-
                 filename = secure_filename(f"{doc_name}_{file.filename}")
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
                 file_saved = filename
-
                 uploaded_files[doc_name] = {
                 "text": text_value if text_value else None,
                 "file": file_saved
             }
-
+                
             # CASE B → Checkbox not checked → File is optional
             else:
                 if file and file.filename != "":
@@ -1164,12 +1137,9 @@ def application_form(id):
                     if len(file_bytes) > MAX_FILE_SIZE:
                         flash(f"{doc_name} must be less than 2MB", "danger")
                         return redirect(request.url)
-
                     file.seek(0)
-
                     filename = secure_filename(f"{doc_name}_{file.filename}")
                     file.save(os.path.join(UPLOAD_FOLDER, filename))
-
                     uploaded_files[doc_name] = filename
 
         # Save into session
@@ -1182,12 +1152,9 @@ def application_form(id):
             "amount": service["base_price"],
             "uploaded_files": uploaded_files,
         }
-
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
-
-
 
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
 def payment(id):
@@ -1276,8 +1243,6 @@ def generate_pdf(app_id):
     response.headers['Content-Disposition'] = f'attachment; filename={app_id}_receipt.pdf'
     return response
 
-
-
 @app.route('/submit_application', methods=['GET', 'POST'])
 def submit_application():
     form_data = session.get("form_data")
@@ -1311,17 +1276,14 @@ def submit_application():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-
     cursor.execute("SELECT * FROM service WHERE service_id = %s", (form_data["service_id"],))
     service = cursor.fetchone()
 
     submission_date = datetime.now().strftime("%d-%m-%Y")
-
     cursor.execute("""
         INSERT INTO application 
         (app_id, service_id, name, email, mobile, service_name, total_amount, uploaded_files, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
         app_id,
         form_data["service_id"],
         form_data["name"],
@@ -1332,7 +1294,6 @@ def submit_application():
         files_string,   # store final renamed files
         "Received"
     ))
-
      # Prepare email content
     msg = Message(
         subject="Application Submitted Successfully – Krishi E-Government Services",
@@ -1345,28 +1306,6 @@ def submit_application():
                                service=service["title"])
 
     mail.send(msg)
-
-    '''
-    # WhatsApp message content
-    whatsapp_message = f"""
-    ✅ *Application Submitted Successfully!*
-
-    Thank you for using Krishi E-Government Services.
-
-    *Application ID:* {app_id}
-    *Service:* {service}
-    *Date:* {submission_date}
-    You can track your application status in the portal.
-    """
-
-    # Send message via Twilio WhatsApp
-    client.messages.create(
-        from_=+14155238886,
-        body=whatsapp_message,
-        to=f'whatsapp:+91{form_data["mobile"]}'
-    )
-    '''
-
     conn.commit()
     cursor.close()
     conn.close()
@@ -1400,7 +1339,6 @@ def download_document(filename):
         abort(404)
     return send_from_directory(base_dir, filename, as_attachment=True)
 
-
 @app.route('/track', methods=['GET', 'POST'])
 def track_application_form():
     application = None
@@ -1412,7 +1350,6 @@ def track_application_form():
         application = Application.query.filter_by(app_id=app_id).first()
         if not application:
             flash("Application not found", "danger")
-
     return render_template('track.html', application=application, searched=searched)
 
 @app.route('/track/<string:app_id>')
@@ -1433,7 +1370,7 @@ def track_application(app_id):
         if not application:
             flash("No application found with this Application ID.", "warning")
             return redirect(url_for('my_applications'))
-
+        
         return render_template('tracking.html', application=application)
 
     except Error as e:
@@ -1441,50 +1378,15 @@ def track_application(app_id):
         flash("An error occurred while fetching application status.", "danger")
         return redirect(url_for('my_applications'))
 
-
-
-# ----------------------- WhatsApp Sender ----------------------------
-def send_whatsapp_receipt(application):
-    # Twilio credentials (use environment variables for security)
-    account_sid = "AC5b329f9457b1a375174144626bd26a1d"
-    auth_token = "9c4476ce607f88bbc2a732fb1af3043a"
-    whatsapp_from = "whatsapp:+12173946575"  # Twilio sandbox number
-
-    client = Client(account_sid, auth_token)
-
-    # Public URL where PDF is hosted (e.g., if deployed)
-    pdf_link = f"https://your-domain.com/static/receipts/{application['app_id']}.pdf"
-
-    message_body = (
-        f"Hello {application['name']},\n\n"
-        f"✅ Your application has been submitted successfully!\n"
-        f"📄 Application ID: {application['app_id']}\n"
-        f"💼 Service: {application['service_name']}\n"
-        f"💰 Amount Paid: ₹{application['total_amount']}\n\n"
-        f"You can download your receipt here:\n{pdf_link}\n\n"
-        f"Thank you for using Krishi E-Government Services!"
-    )
-    user_number = str(application['mobile']).strip()
-    if not user_number.startswith('+91'):
-        user_number = '+91' + user_number
-
-    client.messages.create(
-        from_=whatsapp_from,
-        body=message_body,
-        to=f"whatsapp:+91{application['mobile']}"
-    )
-
 @app.route('/payment_success', methods=['POST'])
 def payment_success():
     data = request.form
-
     razorpay_order_id = data.get('razorpay_order_id')
     razorpay_payment_id = data.get('razorpay_payment_id')
     razorpay_signature = data.get('razorpay_signature')
 
     # Verify payment with Razorpay (optional but recommended)
     # Using your Razorpay API keys for server-side verification
-    import razorpay
     client = razorpay.Client(auth=(" rzp_test_RYA0tri2cAfoE8", "FuIi5rksxQoJ294Qg9trERek"))
 
     try:
@@ -1499,7 +1401,6 @@ def payment_success():
     # ✅ Payment verified successfully, now update database
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-
     cursor.execute("""
         UPDATE application 
         SET payment_status = %s, razorpay_payment_id = %s, status = %s 
@@ -1534,7 +1435,6 @@ def payment_success():
 
     # Redirect user to success/receipt page
     return redirect(url_for('application_submitted'))
-
 
 if __name__ == "__main__":
     try:
