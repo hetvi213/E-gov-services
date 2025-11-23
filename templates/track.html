@@ -32,15 +32,24 @@
     </p>
 
     <div class="flex justify-center">
-      {% if application.status == 'Submitted' %}
-        <span class="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold">Submitted</span>
-      {% elif application.status == 'Processing' %}
-        <span class="bg-yellow-400 text-white px-6 py-2 rounded-lg font-semibold">Processing</span>
-      {% elif application.status == 'Completed' %}
-        <span class="bg-green-500 text-white px-6 py-2 rounded-lg font-semibold">Completed</span>
-      {% else %}
-        <span class="bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold">{{ application.status }}</span>
+      {% if application %}
+        {% if application.status == "Rejected" %}
+
+        <div class="p-4 bg-red-100 border-l-4 border-red-600 rounded mt-4">
+            <h3 class="text-red-700 font-bold text-lg">Application Rejected</h3>
+            <p class="mt-2"><strong>Reason:</strong> {{ application.reject_reason }}</p>
+        </div>
+        {% elif application.status == 'Completed' %}
+          <div class="p-4 bg-green-100 border-l-4 border-green-500 rounded mt-4">
+            <h3 class="text-green-700 font-bold">Status: Completed</h3>
+        </div>
+        {% else %}
+        <div class="p-4 bg-blue-100 border-l-4 border-blue-600 rounded mt-4">
+            <h3 class="text-blue-700 font-bold">Status: {{ application.status }}</h3>
+        </div>
+        {% endif %}
       {% endif %}
+
     </div>
   </div>
   {% elif searched %}

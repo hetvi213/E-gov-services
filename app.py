@@ -105,6 +105,7 @@ class Application(db.Model):
     mobile = db.Column(db.String(50))
     total_amount = db.Column(db.Numeric(10,2))
     status = db.Column(db.String(50))
+    reject_reason = db.Column(db.Text)
     #razorpay_order_id = db.Column(db.String(200), nullable=True)
     #razorpay_payment_id = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1073,6 +1074,43 @@ def service_detail(id):
 UPLOAD_FOLDER = "uploads"   # temporary upload folder
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
+import cv2
+import numpy as np
+from pdf2image import convert_from_bytes
+from PIL import Image
+import io
+
+def is_blurry_image(img_bytes, threshold=120):
+    """Detect blur for JPG/PNG images"""
+    img_array = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+    if img is None:
+        return True  # invalid image → treat as blurry
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+    return lap_var < threshold
+
+
+def is_blurry_pdf(pdf_bytes, threshold=120):
+    """Detect blur in all pages of a PDF"""
+    try:
+        pages = convert_from_bytes(pdf_bytes)
+        for page in pages:
+            img = np.array(page)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+            if lap_var < threshold:
+                return True  # found a blurry page
+        return False
+    except:
+        return True  # unreadable → consider blurry
+
+
 @app.route("/application_form/<int:id>", methods=["GET", "POST"])
 def application_form(id):
 
@@ -1081,65 +1119,92 @@ def application_form(id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM service WHERE service_id = %s", (id,))
     service = cursor.fetchone()
-    #print("RAW DOCUMENT STRING:", repr(service["documents"]))
     cursor.close()
     conn.close()
 
     if not service:
         return "Service not found", 404
 
-    # Convert "Aadhaar, PAN" → ["Aadhaar", "PAN"]
+    # Convert CSV doc list → list
     if service.get("documents"):
         service["documents"] = [doc.strip() for doc in service["documents"].split(",")]
     else:
         service["documents"] = []
 
-    # --------------- POST HANDLING ----------------
+    # ---------------- POST ---------------------
     if request.method == "POST":
         MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
         uploaded_files = {}
 
-        # Loop through each document
         for doc_name in service["documents"]:
 
-            # Checkbox value (on/off)
             checkbox_val = request.form.get(f"{doc_name}_checked")
-
-            # File input
             file = request.files.get(doc_name)
-
-            # Text Box input
             text_value = request.form.get(f"text_{doc_name}", "").strip()
 
-            # CASE A → Checkbox checked → file must be uploaded
+            # CASE A → Checkbox checked
             if checkbox_val == "on":
+
                 if not file or file.filename == "":
                     flash(f"Please upload required document: {doc_name}", "danger")
                     return redirect(request.url)
 
                 file_bytes = file.read()
+
+                # Size check
                 if len(file_bytes) > MAX_FILE_SIZE:
                     flash(f"{doc_name} must be less than 2MB", "danger")
                     return redirect(request.url)
+
+                # ------------- BLUR DETECTION -------------
+                ext = file.filename.rsplit(".", 1)[1].lower()
+
+                if ext in ["jpg", "jpeg", "png"]:
+                    if is_blurry_image(file_bytes):
+                        flash(f"{doc_name} is too blurry. Please upload a clearer image.", "danger")
+                        return redirect(request.url)
+
+                elif ext == "pdf":
+                    if is_blurry_pdf(file_bytes):
+                        flash(f"{doc_name} PDF contains blurry pages. Please upload a clearer document.", "danger")
+                        return redirect(request.url)
+
+                # Reset pointer before saving
                 file.seek(0)
                 filename = secure_filename(f"{doc_name}_{file.filename}")
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
-                file_saved = filename
+
                 uploaded_files[doc_name] = {
-                "text": text_value if text_value else None,
-                "file": file_saved
-            }
-                
-            # CASE B → Checkbox not checked → File is optional
+                    "text": text_value if text_value else None,
+                    "file": filename
+                }
+
+            # CASE B → Checkbox NOT checked
             else:
                 if file and file.filename != "":
                     file_bytes = file.read()
+
                     if len(file_bytes) > MAX_FILE_SIZE:
                         flash(f"{doc_name} must be less than 2MB", "danger")
                         return redirect(request.url)
+
+                    # ------------- BLUR DETECTION -------------
+                    ext = file.filename.rsplit(".", 1)[1].lower()
+
+                    if ext in ["jpg", "jpeg", "png"]:
+                        if is_blurry_image(file_bytes):
+                            flash(f"{doc_name} is too blurry. Please upload a clearer image.", "danger")
+                            return redirect(request.url)
+
+                    elif ext == "pdf":
+                        if is_blurry_pdf(file_bytes):
+                            flash(f"{doc_name} PDF contains blurry pages. Please upload a clearer document.", "danger")
+                            return redirect(request.url)
+
                     file.seek(0)
                     filename = secure_filename(f"{doc_name}_{file.filename}")
                     file.save(os.path.join(UPLOAD_FOLDER, filename))
+
                     uploaded_files[doc_name] = filename
 
         # Save into session
@@ -1152,9 +1217,11 @@ def application_form(id):
             "amount": service["base_price"],
             "uploaded_files": uploaded_files,
         }
+
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
+
 
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
 def payment(id):
@@ -1347,6 +1414,7 @@ def track_application_form():
     if request.method == 'POST':
         searched = True
         app_id = request.form.get('app_id')
+        
         application = Application.query.filter_by(app_id=app_id).first()
         if not application:
             flash("Application not found", "danger")
@@ -1358,7 +1426,7 @@ def track_application(app_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT app_id, name, email, mobile, service_id, status
+            SELECT app_id, name, email, mobile, service_id, status, reject_reason
             FROM application
             WHERE app_id = %s
             LIMIT 1

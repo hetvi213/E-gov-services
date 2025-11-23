@@ -5,96 +5,128 @@
 {% endblock %}
 
 {% block content %}
-  <div class="w-full max-w-md bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-6">
+<div class="w-full max-w-md bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-6">
 
-    <!-- Title -->
-    <div class="text-center">
-      <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
-        Apply for {{ service.title }}
-      </h2>
-      <p class="text-gray-500 dark:text-gray-300 mt-2">
-        Fill in the details to apply for {{ service.title.lower() }}
-      </p>
+  <!-- Title -->
+  <div class="text-center">
+    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
+      Apply for {{ service.title }}
+    </h2>
+    <p class="text-gray-500 dark:text-gray-300 mt-2">
+      Fill in the details to apply for {{ service.title.lower() }}
+    </p>
+  </div>
+
+  <!-- Flash Popup for Errors (BLUR + SIZE + OTHER ERRORS) -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <script>
+        let msg = "";
+        {% for category, message in messages %}
+            msg += "{{ message }}\n";
+        {% endfor %}
+        alert(msg);
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Application Form -->
+  <form action="{{ url_for('application_form', id=service.service_id) }}" 
+        method="POST" enctype="multipart/form-data" class="space-y-5">
+
+    <input type="hidden" name="service_id" value="{{ service.service_id }}">
+
+    <!-- Applicant Details -->
+    <div class="space-y-2">
+      <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+        Enter your name: 
+      </h5>
+      <input type="text" name="name" placeholder="Full Name" required
+        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent 
+               text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
+
+      <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+        Enter your Email Address: 
+      </h5>
+      <input type="email" name="email" placeholder="Email Address" required
+        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent 
+               text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
+
+      <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+        Enter your Mobile No.: 
+      </h5>
+      <input type="tel" name="phone" placeholder="Mobile Number" required
+        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent 
+               text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
     </div>
 
-    <!-- Application Form -->
-    <form action="{{ url_for('application_form', id=service.service_id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
-      <input type="hidden" name="service_id" value="{{ service.id }}">
-      <!-- Applicant Details -->
-      <div class="space-y-2">
-        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
-          Enter your name: 
-        </h5> 
-          <input type="text" name="name" placeholder="Full Name" required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
-        
-        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
-          Enter your Email Address: 
-        </h5> 
-          <input type="email" name="email" placeholder="Email Address" required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
+    <!-- Document Upload Section -->
+    <div class="pt-3">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+        Upload Required Documents
+      </h4>
 
-        <h5 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
-          Enter your Mobile No.: 
-        </h5>
-          <input type="tel" name="phone" placeholder="Mobile Number" required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
-      </div>
-
-      <!-- Document Upload Section -->
-      <div class="pt-3">
-        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
-          Upload Required Documents
-        </h4>
       {% if service.documents and service.documents|length > 0 %}
-        <div class="space-y-3">
-          {% for doc in service.documents %}
+      <div class="space-y-3">
+        {% for doc in service.documents %}
         <div class="p-4 border rounded-lg dark:border-gray-600">
 
-      <!-- Checkbox -->
-      <label class="flex items-center gap-2 mb-2">
-        <input type="checkbox" class="doc-check" data-doc="{{ doc }}">
-        <span class="text-gray-800 dark:text-gray-200 font-medium">
-          {{ doc }} (Max file size 2MB)
-        </span>
-      </label>
-      <div class="pt-3">
-          <input type="text" name="text_{{ doc }}" placeholder="If Documents in Text Format Type here"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
-      </div>
-      <br>
-      <!-- Always visible file upload -->
-      <input type="file" name="{{ doc }}" class="doc-file w-full border dark:border-gray-600 rounded-lg py-2 px-3">
+          <!-- Checkbox -->
+          <label class="flex items-center gap-2 mb-2">
+            <input type="checkbox" class="doc-check" data-doc="{{ doc }}">
+            <span class="text-gray-800 dark:text-gray-200 font-medium">
+              {{ doc }} (Max file size 2MB)
+            </span>
+          </label>
 
-    </div>
-    {% endfor %}
+          <div class="pt-3">
+            <input type="text" name="text_{{ doc }}" 
+                   placeholder="If document is in text format, type here"
+              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent 
+                     text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
+          </div>
+
+          <br>
+
+          <!-- File upload -->
+          <input type="file" name="{{ doc }}" 
+            class="doc-file w-full border dark:border-gray-600 rounded-lg py-2 px-3">
+
         </div>
+        {% endfor %}
+      </div>
       {% else %}
         <p class="text-gray-700 dark:text-gray-300 text-md font-medium">
-            No documents required for this service.
+          No documents required for this service.
         </p>
       {% endif %}
-      </div>
+    </div>
 
-      <!-- Payment Options -->
-      <div class="pt-4 text-left">
-        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Payment Option</h4>
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-          
-          <button type="submit" name="payment_choice" value="with_payment"
-            class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all">
-            Proceed to Payment ₹{{ service.base_price }}
-          </button>
-        </div>
+    <!-- Payment Options -->
+    <div class="pt-4 text-left">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Payment Option</h4>
+
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <button type="submit" name="payment_choice" value="with_payment"
+          class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 
+                 rounded-lg transition-all">
+          Proceed to Payment ₹{{ service.base_price }}
+        </button>
       </div>
-    </form>
-  </div>
+    </div>
+
+  </form>
 </div>
+
 <script>
+// ----------------------------------------------
+// FRONTEND RULES (matches your Python validation)
+// ----------------------------------------------
 document.querySelector("form").addEventListener("submit", function (e) {
 
     const allowedExt = ["pdf", "jpg", "jpeg", "png"];
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 2 * 1024 * 1024;
+
     let checks = document.querySelectorAll(".doc-check");
 
     for (let chk of checks) {
@@ -107,22 +139,18 @@ document.querySelector("form").addEventListener("submit", function (e) {
         let textValue = textInput.value.trim();
         let fileSelected = fileInput.files.length > 0;
 
-        // -----------------------------
-        // RULE 1 → If text or file entered → checkbox MUST be checked
-        // -----------------------------
+        // RULE A: If user enters text or uploads file → checkbox MUST be checked
         if ((textValue || fileSelected) && !chk.checked) {
             alert(`Please tick the checkbox for "${doc}" because you entered text or uploaded a file.`);
             e.preventDefault();
             return;
         }
 
-        // -----------------------------
-        // RULE 2 → If checkbox is checked → user must enter text or upload file
-        // -----------------------------
+        // RULE B: If checkbox checked → must upload OR enter text
         if (chk.checked) {
 
             if (!textValue && !fileSelected) {
-                alert(`For "${doc}", please either upload a file or enter text.`);
+                alert(`For "${doc}", please upload a file OR enter text.`);
                 e.preventDefault();
                 return;
             }
@@ -149,4 +177,3 @@ document.querySelector("form").addEventListener("submit", function (e) {
 </script>
 
 {% endblock %}
-
