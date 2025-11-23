@@ -23,7 +23,10 @@ from email import encoders
 from functools import wraps
 from werkzeug.utils import secure_filename
 from flask import session
-import io, os, pdfkit, bcrypt
+from pdf2image import convert_from_bytes
+from PIL import Image
+import numpy as np
+import io, os, pdfkit, bcrypt, cv2
 import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
@@ -491,6 +494,29 @@ app.permanent_session_lifetime = timedelta(minutes=30)
 def allowed_file(filename):
     allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
     return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
+
+def is_blurry_image(img_bytes, threshold=120):
+    img_array = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    if img is None:
+        return True  # invalid image → treat as blurry
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+    return lap_var < threshold
+
+def is_blurry_pdf(pdf_bytes, threshold=120):
+    try:
+        pages = convert_from_bytes(pdf_bytes)
+        for page in pages:
+            img = np.array(page)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+            if lap_var < threshold:
+                return True  # found a blurry page
+        return False
+    except:
+        return True  # unreadable → consider blurry
 
 def send_document_email(to_email, document_path):
     sender = "hetvi5007@gmail.com"
@@ -1074,43 +1100,6 @@ def service_detail(id):
 UPLOAD_FOLDER = "uploads"   # temporary upload folder
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-import cv2
-import numpy as np
-from pdf2image import convert_from_bytes
-from PIL import Image
-import io
-
-def is_blurry_image(img_bytes, threshold=120):
-    """Detect blur for JPG/PNG images"""
-    img_array = np.frombuffer(img_bytes, np.uint8)
-    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-    if img is None:
-        return True  # invalid image → treat as blurry
-
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-
-    return lap_var < threshold
-
-
-def is_blurry_pdf(pdf_bytes, threshold=120):
-    """Detect blur in all pages of a PDF"""
-    try:
-        pages = convert_from_bytes(pdf_bytes)
-        for page in pages:
-            img = np.array(page)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-
-            if lap_var < threshold:
-                return True  # found a blurry page
-        return False
-    except:
-        return True  # unreadable → consider blurry
-
-
 @app.route("/application_form/<int:id>", methods=["GET", "POST"])
 def application_form(id):
 
@@ -1221,7 +1210,6 @@ def application_form(id):
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
-
 
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
 def payment(id):
