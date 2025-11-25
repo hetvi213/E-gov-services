@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block button %}
+  <a class="px-6 py-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary 
+            rounded-full font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 
+            transition-colors duration-200" href="/">Logout</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="w-full max-w-md bg-white dark:bg-[#063b20] rounded-2xl shadow-lg p-8 space-y-6">
+
+  <!-- Title -->
+  <div class="text-center">
+    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
+      Update Documents for {{ service.title }}
+    </h2>
+    <p class="text-gray-500 dark:text-gray-300 mt-2">
+      Your application ID: <strong>{{ application.app_id }}</strong>
+    </p>
+  </div>
+
+  <!-- Flash Popup -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <script>
+        let msg = "";
+        {% for category, message in messages %}
+          msg += "{{ message }}\n";
+        {% endfor %}
+        alert(msg);
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Update Document Form -->
+  <form action="{{ url_for('update_application', app_id=application.app_id) }}" 
+        method="POST" enctype="multipart/form-data" class="space-y-5">
+
+    <!-- Document List -->
+    <div class="pt-3">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 text-left">
+        Update Required Documents
+      </h4>
+
+      <div class="space-y-3">
+
+        {% for doc in doc_list %}
+        <div class="p-4 border rounded-lg dark:border-gray-600">
+
+          <!-- Checkbox -->
+          <label class="flex items-center gap-2 mb-2">
+            <input type="checkbox" class="doc-check" name="chk_{{ doc }}" data-doc="{{ doc }}">
+            <span class="text-gray-800 dark:text-gray-200 font-medium">
+              {{ doc }} (Max 2MB)
+            </span>
+          </label>
+
+          <!-- Text box (no previous text shown) -->
+          <div class="pt-3">
+            <input type="text" name="text_{{ doc }}"
+              placeholder="Enter text (optional)"
+              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 
+                     rounded-lg bg-transparent text-gray-900 dark:text-white 
+                     focus:ring-2 focus:ring-green-500 focus:outline-none">
+          </div>
+
+          <br>
+
+          <!-- File upload (no previous file shown) -->
+          <input type="file" name="{{ doc }}"
+            class="doc-file w-full border dark:border-gray-600 rounded-lg py-2 px-3">
+
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
+    <!-- Submit button -->
+    <div class="pt-4">
+      <button type="submit"
+              class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold 
+                     py-3 px-6 rounded-lg transition-all">
+        Update Documents
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   FRONTEND VALIDATION (Matches Backend Rules)
+---------------------------------------------------------- */
+
+document.querySelector("form").addEventListener("submit", function (e) {
+
+    const allowedExt = ["pdf", "jpg", "jpeg", "png"];
+    const maxSize = 2 * 1024 * 1024;
+
+    let checks = document.querySelectorAll(".doc-check");
+
+    for (let chk of checks) {
+
+        let doc = chk.getAttribute("data-doc");
+
+        let textInput = document.querySelector(`input[name='text_${doc}']`);
+        let fileInput = document.querySelector(`input[name='${doc}']`);
+
+        let textVal = textInput.value.trim();
+        let fileSelected = fileInput.files.length > 0;
+
+        // RULE A: If user enters text or uploads file → checkbox MUST be checked
+        if ((textVal || fileSelected) && !chk.checked) {
+            alert(`Please tick the checkbox for "${doc}".`);
+            e.preventDefault();
+            return;
+        }
+
+        // RULE B: If checkbox checked → user must provide text OR a file
+        if (chk.checked) {
+
+            if (!textVal && !fileSelected) {
+                alert(`For "${doc}", upload a file OR enter text.`);
+                e.preventDefault();
+                return;
+            }
+
+            if (fileSelected) {
+                let file = fileInput.files[0];
+                let ext = file.name.split(".").pop().toLowerCase();
+
+                if (!allowedExt.includes(ext)) {
+                    alert(`Invalid file type for ${doc}. Allowed: PDF, JPG, JPEG, PNG`);
+                    e.preventDefault();
+                    return;
+                }
+
+                if (file.size > maxSize) {
+                    alert(`${doc} file must be under 2MB.`);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

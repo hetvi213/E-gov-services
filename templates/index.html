@@ -61,20 +61,20 @@ body { font-family: 'Public Sans', sans-serif; }
 </header>
 
 <!-- 🔥 HERO SECTION WITH AUTO SLIDESHOW BACKGROUND -->
-<section class="relative h-[450px] md:h-[550px] overflow-hidden">
+<section class="relative h-screen overflow-hidden">
 
     <!-- Slideshow Background -->
     <div id="heroSlides" class="absolute inset-0 w-full h-full">
-        <img src="/static/images/banner.jpg" class="slide absolute inset-0 w-full h-full object-cover opacity-10o transition-opacity duration-500 blur-lg scale-110"/>
+        <img src="/static/images/7.jpg" class="w-full h-full object-cover"/>
     </div>
 
     <!-- Dark Overlay -->
     <div class="absolute inset-0 bg-black/50"></div>
 
     <!-- Text Content -->
-    <div class="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
-        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white drop-shadow-lg">
-            Welcome to <span class="text-primary">Krishi E-Government Services</span>
+    <div class="relative z-10 flex flex-col items-end justify-center h-full text-right px-4">
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">
+            Welcome to <br><span class="text-secondary">Krishi E-Government <br> Services</span>
         </h1>
 
         <p class="mt-4 text-lg sm:text-xl text-gray-100 max-w-2xl">
@@ -82,30 +82,11 @@ body { font-family: 'Public Sans', sans-serif; }
         </p>
 
         <div class="mt-8 flex gap-4">
-            <a href="/login" class="px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90">Explore Services</a>
+            <a href="/services" class="px-8 py-3 bg-primary text-white rounded-full font-semibold shadow-md hover:bg-primary/90">Explore Services</a>
             <a href="/about" class="px-8 py-3 bg-white/80 text-gray-800 rounded-full font-semibold hover:bg-white">Learn More</a>
         </div>
     </div>
 </section>
-
-
-<script>
-// SIMPLE BACKGROUND FADE SLIDESHOW
-let slideIndex = 0;
-const slides = document.querySelectorAll("#heroSlides .slide");
-
-function showSlides() {
-    slides.forEach((slide, i) => {
-        slide.style.opacity = (i === slideIndex) ? "1" : "0";
-    });
-
-    slideIndex = (slideIndex + 1) % slides.length;
-}
-
-setInterval(showSlides, 4000);
-</script>
-
-
 
 <!-- SERVICES SECTION -->
 <section class="py-16 sm:py-24">

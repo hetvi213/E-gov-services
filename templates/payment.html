@@ -38,7 +38,7 @@
         <input type="hidden" name="name" value="{{ service.name }}">
         <input type="hidden" name="email" value="{{ service.email }}">
         <input type="hidden" name="service" value="{{ service.title }}">
-        <button id="submit-btn" type="submit" disabled
+        <button id="submit-btn" type="submit" 
                 class="bg-blue-400 text-white py-3 px-8 rounded-full w-full cursor-not-allowed transition-all duration-200">
           Submit Application
         </button>
@@ -89,7 +89,7 @@
             submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
             payBtn.disabled = true;
             payBtn.innerText = "Payment Completed";
-            payBtn.classList.add("cursor-not-allowed", "bg-green-400");
+            payBtn.classList.add("cursor-not-allowed", "bg-gray-400");
             payBtn.classList.remove("bg-green-600", "hover:bg-green-700");
 
             // Optionally store payment info in hidden inputs or localStorage

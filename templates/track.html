@@ -49,6 +49,14 @@
         </div>
         {% endif %}
       {% endif %}
+{% if application and application.status == 'Rejected' %}
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('update_documents', app_id=application.app_id) }}"
+           class="px-6 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition">
+            Update Documents
+        </a>
+    </div>
+{% endif %}
 
     </div>
   </div>
