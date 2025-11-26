@@ -1143,7 +1143,6 @@ def application_form(id):
                 if not file or file.filename == "":
                     flash(f"Please upload required document: {doc_name}", "danger")
                     return redirect(request.url)
-
                 file_bytes = file.read()
 
                 # Size check
@@ -1158,7 +1157,6 @@ def application_form(id):
                     if is_blurry_image(file_bytes):
                         flash(f"{doc_name} is too blurry. Please upload a clearer image.", "danger")
                         return redirect(request.url)
-
                 elif ext == "pdf":
                     if is_blurry_pdf(file_bytes):
                         flash(f"{doc_name} PDF contains blurry pages. Please upload a clearer document.", "danger")
@@ -1199,7 +1197,6 @@ def application_form(id):
                     file.seek(0)
                     filename = secure_filename(f"{doc_name}_{file.filename}")
                     file.save(os.path.join(UPLOAD_FOLDER, filename))
-
                     uploaded_files[doc_name] = filename
 
         # Save into session
@@ -1212,116 +1209,9 @@ def application_form(id):
             "amount": service["base_price"],
             "uploaded_files": uploaded_files,
         }
-
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
-
-@app.route('/update-application/<app_id>', methods=['GET', 'POST'])
-def update_application(app_id):
-
-    # ---------- FETCH APPLICATION ----------
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
-    application = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not application:
-        flash("Application not found", "danger")
-        return redirect(url_for('my_applications'))
-
-    # ---------- FETCH SERVICE ----------
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE service_id = %s", (application["service_id"],))
-    service = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not service:
-        flash("Service not found", "danger")
-        return redirect(url_for('my_applications'))
-
-    # Convert CSV → list
-    doc_list = [d.strip() for d in service["documents"].split(",")] if service.get("documents") else []
-
-    # ---------------- POST METHOD -------------------
-    if request.method == "POST":
-
-        MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
-
-        # OLD FILES (CSV)
-        old_uploaded = application.get("uploaded_files", "")
-        uploaded_list = [] if not old_uploaded else old_uploaded.split(",")
-
-        # OLD TEXT (CSV)
-        old_text = application.get("upload_text", "")
-        text_list = [] if not old_text else old_text.split(",")
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        for doc_name in doc_list:
-
-            uploaded_file = request.files.get(doc_name)
-            text_value = request.form.get(f"text_{doc_name}", "").strip()
-
-            # ---------- TEXT SAVE ----------
-            if text_value:
-                text_list.append(f"{doc_name}:{text_value}")
-
-            # ---------- FILE UPLOAD ----------
-            if uploaded_file and uploaded_file.filename:
-
-                file_bytes = uploaded_file.read()
-
-                if len(file_bytes) > MAX_FILE_SIZE:
-                    flash(f"{doc_name} must be under 2MB", "danger")
-                    return redirect(request.url)
-
-                ext = uploaded_file.filename.rsplit(".", 1)[1].lower()
-
-                if ext in ["jpg", "jpeg", "png"]:
-                    if is_blurry_image(file_bytes):
-                        flash(f"{doc_name} is blurry. Upload a clear image.", "danger")
-                        return redirect(request.url)
-
-                if ext == "pdf":
-                    if is_blurry_pdf(file_bytes):
-                        flash(f"{doc_name} PDF is blurry.", "danger")
-                        return redirect(request.url)
-
-                uploaded_file.seek(0)
-                filename = secure_filename(f"{app_id}_{doc_name}_{uploaded_file.filename}")
-                uploaded_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-                uploaded_list.append(filename)
-
-        # ---------------- SAVE BACK TO DB ----------------
-        final_files = ",".join(uploaded_list)
-        final_text = ",".join(text_list)
-
-        cursor.execute(
-            "UPDATE application SET uploaded_files=%s, upload_text=%s, status='Rejected' WHERE app_id=%s",
-            (final_files, final_text, app_id)
-        )
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        flash("Your document is updated", "success")   # For popup
-        return redirect(url_for('my_applications'))
-
-    return render_template(
-        "update_documents.html",
-        application=application,
-        service=service,
-        doc_list=doc_list,
-    )
-
 
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
 def payment(id):
@@ -1505,6 +1395,103 @@ def download_document(filename):
     if not os.path.exists(file_path):
         abort(404)
     return send_from_directory(base_dir, filename, as_attachment=True)
+
+
+@app.route('/update-application/<app_id>', methods=['GET', 'POST'])
+def update_application(app_id):
+    # ---------- FETCH APPLICATION ----------
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM application WHERE app_id = %s", (app_id,))
+    application = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not application:
+        flash("Application not found", "danger")
+        return redirect(url_for('my_applications'))
+
+    # ---------- FETCH SERVICE ----------
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM service WHERE service_id = %s", (application["service_id"],))
+    service = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not service:
+        flash("Service not found", "danger")
+        return redirect(url_for('my_applications'))
+
+    # Convert CSV → list
+    doc_list = [d.strip() for d in service["documents"].split(",")] if service.get("documents") else []
+
+    # ---------------- POST METHOD -------------------
+    if request.method == "POST":
+        MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
+
+        # OLD FILES (CSV)
+        old_uploaded = application.get("uploaded_files", "")
+        uploaded_list = [] if not old_uploaded else old_uploaded.split(",")
+
+        # OLD TEXT (CSV)
+        old_text = application.get("upload_text", "")
+        text_list = [] if not old_text else old_text.split(",")
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        for doc_name in doc_list:
+            uploaded_file = request.files.get(doc_name)
+            text_value = request.form.get(f"text_{doc_name}", "").strip()
+
+            # ---------- TEXT SAVE ----------
+            if text_value:
+                text_list.append(f"{text_value}")
+
+            # ---------- FILE UPLOAD ----------
+            if uploaded_file and uploaded_file.filename:
+                file_bytes = uploaded_file.read()
+
+                if len(file_bytes) > MAX_FILE_SIZE:
+                    flash(f"{doc_name} must be under 2MB", "danger")
+                    return redirect(request.url)
+                ext = uploaded_file.filename.rsplit(".", 1)[1].lower()
+
+                if ext in ["jpg", "jpeg", "png"]:
+                    if is_blurry_image(file_bytes):
+                        flash(f"{doc_name} is blurry. Upload a clear image.", "danger")
+                        return redirect(request.url)
+                if ext == "pdf":
+                    if is_blurry_pdf(file_bytes):
+                        flash(f"{doc_name} PDF is blurry.", "danger")
+                        return redirect(request.url)
+
+                uploaded_file.seek(0)
+                filename = secure_filename(f"{app_id}_{doc_name}_{uploaded_file.filename}")
+                uploaded_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                uploaded_list.append(filename)
+
+        # ---------------- SAVE BACK TO DB ----------------
+        final_files = ",".join(uploaded_list)
+        final_text = ",".join(text_list)
+
+        cursor.execute(
+            "UPDATE application SET uploaded_files=%s, upload_text=%s, status='Received' WHERE app_id=%s",
+            (final_files, final_text, app_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        flash("Your document is updated", "success")   # For popup
+        return redirect(url_for('my_applications'))
+
+    return render_template(
+        "update_documents.html",
+        application=application,
+        service=service,
+        doc_list=doc_list,
+    )
 
 @app.route('/track', methods=['GET', 'POST'])
 def track_application_form():
