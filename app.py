@@ -10,9 +10,10 @@ from sqlalchemy.dialects.mysql import JSON
 from email.message import EmailMessage
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Flowable
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import HexColor
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from io import BytesIO
 from flask_mail import Mail, Message
 from twilio.rest import Client
@@ -326,8 +327,20 @@ def analytics_pdf():
     elements = []
     styles = getSampleStyleSheet()
 
+    title_style = ParagraphStyle(
+    name="CompanyName",
+    fontSize=18,
+    textColor=HexColor("#16a34a"),
+    leading=18,
+    spaceAfter=30
+    )
+
+    company_name = Paragraph("<b>Krishi E-Government Services</b> <hr>", title_style)
+    elements.append(company_name)
+    elements.append(Spacer(1, 12))
+
     # Title
-    elements.append(Paragraph("<b>Monthly Revenue Report (Service-wise)</b>", styles['Title']))
+    elements.append(Paragraph("<b>Monthly Revenue Report (Service-wise)</b>", styles['Heading2']))
     elements.append(Spacer(1, 12))
 
     # ===== TABLE 1: Monthly Revenue Summary (Service-wise) =====
@@ -354,7 +367,7 @@ def analytics_pdf():
 
     # ===== TABLE 2: Total Revenue Per Month =====
     elements.append(Paragraph("<b>Total Revenue Per Month</b>", styles['Heading2']))
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 12))
 
     data2 = [["Month", "Total Revenue (Rs.)"]]
 
