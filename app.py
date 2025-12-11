@@ -1,7 +1,6 @@
-from MySQLdb import MySQLError
+from mysql.connector import Error as MySQLError
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, jsonify, send_file, make_response, send_from_directory
 from mysql.connector import Error
-from flask_mysqldb import MySQL
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -28,7 +27,7 @@ from pdf2image import convert_from_bytes
 from PIL import Image
 import numpy as np
 import io, os, pdfkit, bcrypt, cv2
-import mysql.connector, random, string, json, os, uuid, smtplib, ssl, MySQLdb.cursors, razorpay, warnings
+import mysql.connector, random, string, json, os, uuid, smtplib, ssl, razorpay, warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
 from dotenv import load_dotenv
@@ -209,6 +208,15 @@ def complete_application(app_id):
         cursor.close()
         conn.close()
         return "Document not generated yet.", 400
+    
+    full_document_path = os.path.join(app.root_path, "uploads", document_path)
+
+    print("Admin looking for:", full_document_path)  # Debug
+
+    if not os.path.exists(full_document_path):
+        cursor.close()
+        conn.close()
+        return f"File not found: {full_document_path}", 400
 
     # Update status to Completed
     cursor.execute(
@@ -219,7 +227,7 @@ def complete_application(app_id):
     conn.close()
 
     # Send document email
-    send_document_email(application["email"], document_path)
+    send_document_email(application["email"], full_document_path)
     return render_template("application_form_completed.html")
 
 # Admin Analytics Route
@@ -1141,14 +1149,17 @@ def application_form(id):
 
     # ---------------- POST ---------------------
     if request.method == "POST":
-        MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
+        MAX_FILE_SIZE = 2 * 1024 * 1024  #2 MB
         uploaded_files = {}
+        text_list = []
 
         for doc_name in service["documents"]:
-
             checkbox_val = request.form.get(f"{doc_name}_checked")
             file = request.files.get(doc_name)
             text_value = request.form.get(f"text_{doc_name}", "").strip()
+
+            if text_value:
+                text_list.append(f"{text_value}")
 
             # CASE A → Checkbox checked
             if checkbox_val == "on":
@@ -1221,6 +1232,7 @@ def application_form(id):
             "title": service["title"],
             "amount": service["base_price"],
             "uploaded_files": uploaded_files,
+            "text_list": text_list,
         }
         return redirect(url_for("payment", id=id))
 
@@ -1330,8 +1342,14 @@ def submit_application():
 
     uploaded_files = form_data.get("uploaded_files", {})
     final_files = []
+    text_list = []
     for doc_name, filename in uploaded_files.items():
         temp_path = os.path.join(temp_folder, filename)
+        text_value = request.form.get(f"text_{doc_name}", "").strip()
+
+            # ---------- TEXT SAVE ----------
+        if text_value:
+            text_list.append(f"{text_value}")
 
         # new name: APP-3535_Aadhaar_doc.pdf
         new_filename = f"{app_id}_{filename}"
@@ -1343,6 +1361,7 @@ def submit_application():
         final_files.append(new_filename)
 
     files_string = " , ".join(final_files)
+    final_text = ",".join(text_list)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -1352,8 +1371,8 @@ def submit_application():
     submission_date = datetime.now().strftime("%d-%m-%Y")
     cursor.execute("""
         INSERT INTO application 
-        (app_id, service_id, name, email, mobile, service_name, total_amount, uploaded_files, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
+        (app_id, service_id, name, email, mobile, service_name, total_amount, upload_text, uploaded_files, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
         app_id,
         form_data["service_id"],
         form_data["name"],
@@ -1361,6 +1380,7 @@ def submit_application():
         form_data["mobile"],
         service["title"],
         service["base_price"],
+        final_text,
         files_string,   # store final renamed files
         "Received"
     ))

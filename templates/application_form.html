@@ -80,7 +80,7 @@
           </label>
 
           <div class="pt-3">
-            <input type="text" name="text_{{ doc }}" 
+            <input type="text" name="text_{{ doc|replace(' ', '_') }}"
                    placeholder="If document is in text format, type here"
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent 
                      text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none">
@@ -119,9 +119,6 @@
 </div>
 
 <script>
-// ----------------------------------------------
-// FRONTEND RULES (matches your Python validation)
-// ----------------------------------------------
 document.querySelector("form").addEventListener("submit", function (e) {
 
     const allowedExt = ["pdf", "jpg", "jpeg", "png"];
@@ -132,14 +129,20 @@ document.querySelector("form").addEventListener("submit", function (e) {
     for (let chk of checks) {
 
         let doc = chk.getAttribute("data-doc");
+        let safe = doc.replace(/ /g, "_");
 
-        let fileInput = document.querySelector(`input[name='${doc}']`);
-        let textInput = document.querySelector(`input[name='text_${doc}']`);
+        // Automatically match both original + sanitized names
+        let fileInput = document.querySelector(`input[name='${doc}'], input[name='${safe}']`);
+        let textInput = document.querySelector(`input[name='text_${doc}'], input[name='text_${safe}']`);
+
+        if (!fileInput || !textInput) {
+            continue;  // should never happen
+        }
 
         let textValue = textInput.value.trim();
         let fileSelected = fileInput.files.length > 0;
 
-        // RULE A: If user enters text or uploads file → checkbox MUST be checked
+        // RULE A: If text/file entered → checkbox must be checked
         if ((textValue || fileSelected) && !chk.checked) {
             alert(`Please tick the checkbox for "${doc}" because you entered text or uploaded a file.`);
             e.preventDefault();
@@ -159,14 +162,16 @@ document.querySelector("form").addEventListener("submit", function (e) {
                 let file = fileInput.files[0];
                 let ext = file.name.split(".").pop().toLowerCase();
 
+                // 🛑 FILE TYPE CHECK WORKS NOW
                 if (!allowedExt.includes(ext)) {
-                    alert(`Invalid file type for ${doc}`);
+                    alert(`Invalid file type for ${doc}. Only PDF, JPG, JPEG, PNG allowed.`);
                     e.preventDefault();
                     return;
                 }
 
+                // Size check
                 if (file.size > maxSize) {
-                    alert(`${doc} must be under 2 MB`);
+                    alert(`${doc} must be under 2 MB.`);
                     e.preventDefault();
                     return;
                 }
