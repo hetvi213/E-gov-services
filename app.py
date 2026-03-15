@@ -1241,7 +1241,6 @@ def submit_application():
     # Move files from uploads → uploads_final
     for doc_name, filename in uploaded_files.items():
 
-
         if not filename:
             continue
 
