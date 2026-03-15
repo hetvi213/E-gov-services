@@ -1238,6 +1238,92 @@ def application_form(id):
 
     return render_template("application_form.html", service=service)
 
+@app.route('/submit_application', methods=['GET', 'POST'])
+def submit_application():
+    form_data = session.get("form_data")
+    if not form_data:
+        flash("No application data found. Please start again.", "warning")
+        return redirect(url_for("services"))
+
+    # generate application ID
+    app_id = f"APP-{random.randint(1000, 9999)}"
+
+    # Handle uploaded documents
+    temp_folder = "uploads"
+    final_folder = "uploads_final"
+    os.makedirs(final_folder, exist_ok=True)
+
+    uploaded_files = form_data.get("uploaded_files", {})
+    final_files = []
+    text_list = []
+    for doc_name, filename in uploaded_files.items():
+        temp_path = os.path.join(temp_folder, filename)
+        text_value = request.form.get(f"text_{doc_name}", "").strip()
+
+            # ---------- TEXT SAVE ----------
+        if text_value:
+            text_list.append(f"{text_value}")
+
+        # new name: APP-3535_Aadhaar_doc.pdf
+        new_filename = f"{app_id}_{filename}"
+        final_path = os.path.join(final_folder, new_filename)
+
+        if os.path.exists(temp_path):
+            os.rename(temp_path, final_path)
+
+        final_files.append(new_filename)
+
+    files_string = " , ".join(final_files)
+    final_text = ",".join(text_list)
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM service WHERE service_id = %s", (form_data["service_id"],))
+    service = cursor.fetchone()
+
+    submission_date = datetime.now().strftime("%d-%m-%Y")
+    cursor.execute("""
+        INSERT INTO application 
+        (user_id, app_id, service_id, name, email, mobile, service_name, total_amount, upload_text, uploaded_files, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
+        session['user_id'], 
+        app_id,
+        form_data["service_id"],
+        form_data["name"],
+        form_data["email"],
+        form_data["mobile"],
+        service["title"],
+        service["base_price"],
+        final_text,
+        files_string,   # store final renamed files
+        "Received"
+    ))
+     # Prepare email content
+    msg = Message(
+        subject="Application Submitted Successfully – Krishi E-Government Services",
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[form_data["email"]]
+    )
+    msg.html = render_template('email_receipt.html', 
+                               app_id=app_id, 
+                               date=submission_date, 
+                               service=service["title"])
+
+    mail.send(msg)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # clear session
+    session.pop("form_data", None)
+
+    return render_template(
+        'application_submitted.html',
+        app_id=app_id,
+        submission_date=submission_date,
+        service_name=service["title"]
+    )
+
 @app.route("/payment/<int:id>", methods=["GET", "POST"])
 def payment(id):
     conn = get_db_connection()
@@ -1325,96 +1411,13 @@ def generate_pdf(app_id):
     response.headers['Content-Disposition'] = f'attachment; filename={app_id}_receipt.pdf'
     return response
 
-@app.route('/submit_application', methods=['GET', 'POST'])
-def submit_application():
-    form_data = session.get("form_data")
-    if not form_data:
-        flash("No application data found. Please start again.", "warning")
-        return redirect(url_for("services"))
-
-    # generate application ID
-    app_id = f"APP-{random.randint(1000, 9999)}"
-
-    # Handle uploaded documents
-    temp_folder = "uploads"
-    final_folder = "uploads_final"
-    os.makedirs(final_folder, exist_ok=True)
-
-    uploaded_files = form_data.get("uploaded_files", {})
-    final_files = []
-    text_list = []
-    for doc_name, filename in uploaded_files.items():
-        temp_path = os.path.join(temp_folder, filename)
-        text_value = request.form.get(f"text_{doc_name}", "").strip()
-
-            # ---------- TEXT SAVE ----------
-        if text_value:
-            text_list.append(f"{text_value}")
-
-        # new name: APP-3535_Aadhaar_doc.pdf
-        new_filename = f"{app_id}_{filename}"
-        final_path = os.path.join(final_folder, new_filename)
-
-        if os.path.exists(temp_path):
-            os.rename(temp_path, final_path)
-
-        final_files.append(new_filename)
-
-    files_string = " , ".join(final_files)
-    final_text = ",".join(text_list)
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE service_id = %s", (form_data["service_id"],))
-    service = cursor.fetchone()
-
-    submission_date = datetime.now().strftime("%d-%m-%Y")
-    cursor.execute("""
-        INSERT INTO application 
-        (app_id, service_id, name, email, mobile, service_name, total_amount, upload_text, uploaded_files, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
-        app_id,
-        form_data["service_id"],
-        form_data["name"],
-        form_data["email"],
-        form_data["mobile"],
-        service["title"],
-        service["base_price"],
-        final_text,
-        files_string,   # store final renamed files
-        "Received"
-    ))
-     # Prepare email content
-    msg = Message(
-        subject="Application Submitted Successfully – Krishi E-Government Services",
-        sender=app.config['MAIL_USERNAME'],
-        recipients=[form_data["email"]]
-    )
-    msg.html = render_template('email_receipt.html', 
-                               app_id=app_id, 
-                               date=submission_date, 
-                               service=service["title"])
-
-    mail.send(msg)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    # clear session
-    session.pop("form_data", None)
-
-    return render_template(
-        'application_submitted.html',
-        app_id=app_id,
-        submission_date=submission_date,
-        service_name=service["title"]
-    )
-
 @app.route("/my_applications")
 def my_applications():
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM application ORDER BY app_id DESC")
+    cur.execute("SELECT * FROM application WHERE user_id = %s",
+        (session['user_id'],)
+    )
     applications = cur.fetchall()
     cur.close()
     conn.close()
