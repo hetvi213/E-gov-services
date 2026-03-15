@@ -75,7 +75,7 @@ with app.app_context():
     db.create_all()
 
 # ✅ Load JSON file safely
-json_path = r"C:\Users\Hetvi\OneDrive\Desktop\Final Year Project\E-Gov\data.json"  # update your path
+json_path =json_path = "data.json"  # update your path
 if not os.path.exists(json_path):
     print(f"❌ JSON file not found: {json_path}")
     exit()
@@ -1128,124 +1128,103 @@ UPLOAD_FOLDER = "uploads"   # temporary upload folder
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/application_form/<int:id>", methods=["GET", "POST"])
+@login_required
 def application_form(id):
 
-    # Fetch the service
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
     cursor.execute("SELECT * FROM service WHERE service_id = %s", (id,))
     service = cursor.fetchone()
+
     cursor.close()
     conn.close()
 
     if not service:
         return "Service not found", 404
 
-    # Convert CSV doc list → list
+    # Convert CSV docs to list
     if service.get("documents"):
         service["documents"] = [doc.strip() for doc in service["documents"].split(",")]
     else:
         service["documents"] = []
 
-    # ---------------- POST ---------------------
     if request.method == "POST":
-        MAX_FILE_SIZE = 2 * 1024 * 1024  #2 MB
+
+        MAX_FILE_SIZE = 2 * 1024 * 1024
         uploaded_files = {}
         text_list = []
 
         for doc_name in service["documents"]:
-            checkbox_val = request.form.get(f"{doc_name}_checked")
+
+            safe_doc = doc_name.replace(" ", "_")
+
+            checkbox_val = request.form.get(f"{safe_doc}_checked")
             file = request.files.get(doc_name)
-            text_value = request.form.get(f"text_{doc_name}", "").strip()
+            text_value = request.form.get(f"text_{safe_doc}", "").strip()
 
+            # Save text
             if text_value:
-                text_list.append(f"{text_value}")
+                text_list.append(text_value)
 
-            # CASE A → Checkbox checked
+            # Checkbox checked
             if checkbox_val == "on":
 
-                if not file or file.filename == "":
-                    flash(f"Please upload required document: {doc_name}", "danger")
+                if not text_value and (not file or file.filename == ""):
+                    flash(f"For {doc_name}, please upload file OR enter text.", "danger")
                     return redirect(request.url)
+
+            # File uploaded
+            if file and file.filename != "":
+
                 file_bytes = file.read()
 
-                # Size check
                 if len(file_bytes) > MAX_FILE_SIZE:
                     flash(f"{doc_name} must be less than 2MB", "danger")
                     return redirect(request.url)
 
-                # ------------- BLUR DETECTION -------------
                 ext = file.filename.rsplit(".", 1)[1].lower()
 
                 if ext in ["jpg", "jpeg", "png"]:
                     if is_blurry_image(file_bytes):
-                        flash(f"{doc_name} is too blurry. Please upload a clearer image.", "danger")
+                        flash(f"{doc_name} is blurry. Upload clear image.", "danger")
                         return redirect(request.url)
+
                 elif ext == "pdf":
                     if is_blurry_pdf(file_bytes):
-                        flash(f"{doc_name} PDF contains blurry pages. Please upload a clearer document.", "danger")
+                        flash(f"{doc_name} PDF is blurry.", "danger")
                         return redirect(request.url)
 
-                # Reset pointer before saving
                 file.seek(0)
+
                 filename = secure_filename(f"{doc_name}_{file.filename}")
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
 
-                uploaded_files[doc_name] = {
-                    "text": text_value if text_value else None,
-                    "file": filename
-                }
+                uploaded_files[doc_name] = filename
 
-            # CASE B → Checkbox NOT checked
-            else:
-                if file and file.filename != "":
-                    file_bytes = file.read()
-
-                    if len(file_bytes) > MAX_FILE_SIZE:
-                        flash(f"{doc_name} must be less than 2MB", "danger")
-                        return redirect(request.url)
-
-                    # ------------- BLUR DETECTION -------------
-                    ext = file.filename.rsplit(".", 1)[1].lower()
-
-                    if ext in ["jpg", "jpeg", "png"]:
-                        if is_blurry_image(file_bytes):
-                            flash(f"{doc_name} is too blurry. Please upload a clearer image.", "danger")
-                            return redirect(request.url)
-
-                    elif ext == "pdf":
-                        if is_blurry_pdf(file_bytes):
-                            flash(f"{doc_name} PDF contains blurry pages. Please upload a clearer document.", "danger")
-                            return redirect(request.url)
-
-                    file.seek(0)
-                    filename = secure_filename(f"{doc_name}_{file.filename}")
-                    file.save(os.path.join(UPLOAD_FOLDER, filename))
-                    uploaded_files[doc_name] = filename
-
-        # Save into session
         session["form_data"] = {
             "service_id": id,
             "name": request.form["name"],
             "email": request.form["email"],
             "mobile": request.form["phone"],
-            "title": service["title"],
-            "amount": service["base_price"],
             "uploaded_files": uploaded_files,
             "text_list": text_list,
         }
+
         return redirect(url_for("payment", id=id))
 
     return render_template("application_form.html", service=service)
 
 @app.route('/submit_application', methods=['GET', 'POST'])
 def submit_application():
+
     form_data = session.get("form_data")
+
     if not form_data:
         flash("No application data found. Please start again.", "warning")
         return redirect(url_for("services"))
 
-    # generate application ID
+    # Generate application ID
     app_id = f"APP-{random.randint(1000, 9999)}"
 
     # Handle uploaded documents
@@ -1255,16 +1234,19 @@ def submit_application():
 
     uploaded_files = form_data.get("uploaded_files", {})
     final_files = []
-    text_list = []
+
+    # Get text values (works even if no files uploaded)
+    text_list = form_data.get("text_list", [])
+
+    # Move files from uploads → uploads_final
     for doc_name, filename in uploaded_files.items():
+
+
+        if not filename:
+            continue
+
         temp_path = os.path.join(temp_folder, filename)
-        text_value = request.form.get(f"text_{doc_name}", "").strip()
 
-            # ---------- TEXT SAVE ----------
-        if text_value:
-            text_list.append(f"{text_value}")
-
-        # new name: APP-3535_Aadhaar_doc.pdf
         new_filename = f"{app_id}_{filename}"
         final_path = os.path.join(final_folder, new_filename)
 
@@ -1273,20 +1255,30 @@ def submit_application():
 
         final_files.append(new_filename)
 
-    files_string = " , ".join(final_files)
+    # Convert list to string for DB
+    files_string = ",".join(final_files)
     final_text = ",".join(text_list)
 
+    # Connect database
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM service WHERE service_id = %s", (form_data["service_id"],))
+
+    cursor.execute(
+        "SELECT * FROM service WHERE service_id = %s",
+        (form_data["service_id"],)
+    )
+
     service = cursor.fetchone()
 
     submission_date = datetime.now().strftime("%d-%m-%Y")
+
+    # Insert application
     cursor.execute("""
         INSERT INTO application 
         (user_id, app_id, service_id, name, email, mobile, service_name, total_amount, upload_text, uploaded_files, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
-        session['user_id'], 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        session['user_id'],
         app_id,
         form_data["service_id"],
         form_data["name"],
@@ -1295,26 +1287,31 @@ def submit_application():
         service["title"],
         service["base_price"],
         final_text,
-        files_string,   # store final renamed files
+        files_string,
         "Received"
     ))
-     # Prepare email content
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Send confirmation email
     msg = Message(
         subject="Application Submitted Successfully – Krishi E-Government Services",
         sender=app.config['MAIL_USERNAME'],
         recipients=[form_data["email"]]
     )
-    msg.html = render_template('email_receipt.html', 
-                               app_id=app_id, 
-                               date=submission_date, 
-                               service=service["title"])
+
+    msg.html = render_template(
+        'email_receipt.html',
+        app_id=app_id,
+        date=submission_date,
+        service=service["title"]
+    )
 
     mail.send(msg)
-    conn.commit()
-    cursor.close()
-    conn.close()
 
-    # clear session
+    # Clear session
     session.pop("form_data", None)
 
     return render_template(
@@ -1478,7 +1475,12 @@ def update_application(app_id):
         cursor = conn.cursor()
         for doc_name in doc_list:
             uploaded_file = request.files.get(doc_name)
-            text_value = request.form.get(f"text_{doc_name}", "").strip()
+            safe_doc = doc_name.replace(" ", "_")
+            file = request.files.get(doc_name)
+            text_value = request.form.get(f"text_{safe_doc}", "").strip()
+
+            if text_value:
+                 text_list.append(text_value)
 
             # ---------- TEXT SAVE ----------
             if text_value:
