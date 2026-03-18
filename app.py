@@ -1462,11 +1462,10 @@ def update_application(app_id):
     if request.method == "POST":
         MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
 
-        # OLD FILES (CSV)
+        # LOAD OLD DATA (preserve existing, append new with comma)
         old_uploaded = application.get("uploaded_files", "")
         uploaded_list = [] if not old_uploaded else old_uploaded.split(",")
 
-        # OLD TEXT (CSV)
         old_text = application.get("upload_text", "")
         text_list = [] if not old_text else old_text.split(",")
 
@@ -1476,14 +1475,12 @@ def update_application(app_id):
             uploaded_file = request.files.get(doc_name)
             safe_doc = doc_name.replace(" ", "_")
             file = request.files.get(doc_name)
-            text_value = request.form.get(f"text_{safe_doc}", "").strip()
-
-            if text_value:
-                 text_list.append(text_value)
+            # Match the form field name from HTML (text_{{ doc }})
+            text_value = request.form.get(f"text_{doc_name}",  "").strip()
 
             # ---------- TEXT SAVE ----------
             if text_value:
-                text_list.append(f"{text_value}")
+                text_list.append(f"{text_value} ({doc_name})")
 
             # ---------- FILE UPLOAD ----------
             if uploaded_file and uploaded_file.filename:
@@ -1509,8 +1506,8 @@ def update_application(app_id):
                 uploaded_list.append(filename)
 
         # ---------------- SAVE BACK TO DB ----------------
-        final_files = ",".join(uploaded_list)
-        final_text = ",".join(text_list)
+        final_files = " , ".join(uploaded_list)
+        final_text = " , ".join(text_list)
 
         cursor.execute(
             "UPDATE application SET uploaded_files=%s, upload_text=%s, status='Received' WHERE app_id=%s",
