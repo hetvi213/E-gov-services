@@ -759,7 +759,6 @@ def home():
 
 @app.route('/log')
 def logout():
-    session.clear()
     return render_template('log.html')
 
 @app.route('/register')
@@ -1480,7 +1479,7 @@ def update_application(app_id):
 
             # ---------- TEXT SAVE ----------
             if text_value:
-                text_list.append(f"{text_value} ({doc_name})")
+                text_list.append(f"{text_value}")
 
             # ---------- FILE UPLOAD ----------
             if uploaded_file and uploaded_file.filename:
